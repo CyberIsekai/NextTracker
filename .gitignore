@@ -1,0 +1,22 @@
+**/node_modules
+**/__pycache__
+**/.vscode
+**/.venv
+**/.next
+**/test
+
+*.log
+*.env
+# *.sh
+*.sock
+
+.logs
+
+# fastapi/alembic/versions
+# fastapi/alembic/versions.back
+
+# nextjs/app/components/drizzle/migrations
+
+# static/files/dumps
+static/files/tables_optional.zip
+# static/temp

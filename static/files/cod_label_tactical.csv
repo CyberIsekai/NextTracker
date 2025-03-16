@@ -1,0 +1,12 @@
+id,name,label,game_mode,time
+1,concussion,Stun Grenade,mw_mp,2023-11-16 09:55:53.693
+2,flash,Flashbang,mw_mp,2023-11-16 09:55:53.693
+3,smoke,Smoke Grenade,mw_mp,2023-11-16 09:55:53.693
+4,snapshot_grenade,Snapshot Grenade,mw_mp,2023-11-16 09:55:53.693
+5,decoy,Decoy,mw_mp,2023-11-16 09:55:53.693
+6,hb_sensor,Heartbeat Sensor,mw_mp,2023-11-16 09:55:53.693
+7,adrenaline,Stim,mw_mp,2023-11-16 09:55:53.693
+8,gas_grenade,Gas Grenade,mw_mp,2023-11-16 09:55:53.693
+9,tac_insert,Tac Insert,mw_mp,2023-11-16 09:55:53.693
+11,trophy,Trophy,mw_mp,2023-11-16 09:55:53.693
+10,binoculars,Binocular,mw_wz,2023-11-16 09:55:53.693

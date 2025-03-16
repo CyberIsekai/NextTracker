@@ -1,0 +1,1 @@
+Temp folder for uploaded but not confirmed images

@@ -101,10 +101,10 @@ export default function NavigationWrapper({ children }: { children: React.ReactN
                 className={`dropdown border-b-2 hover:text-amber-600 ${btn_style}`}
                 title={`${t(`open ${data_type}`)} ${game_mode === C.ALL ? t(game_mode) : GAME_MODE_TITLES[game_mode]}`}
                 onClick={() => push(router_generate_url({
-                    data_type: router.data_type,
+                    data_type: router.data_type === C.UNO ? data_type : router.data_type,
                     target,
                     game: _game,
-                    mode: _game === C.MW ? _mode : C.ALL
+                    mode: _game === C.MW && data_type === C.MATCHES ? _mode : C.ALL,
                 }))}
             >
                 <IconGameMode game_mode={game_mode} size={48} />

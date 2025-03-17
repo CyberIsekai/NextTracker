@@ -5,7 +5,7 @@ import time
 from core.config import settings
 
 from apps.base.schemas.main import C
-from apps.base.crud.utils import redis_manage, get_status, manage_monitor
+from apps.base.crud.utils import manage_monitor
 
 # wait until monitor will be ready
 time_interval = int(settings.TASK_QUEUES_INTERVAL_SECONDS.total_seconds())
@@ -32,7 +32,6 @@ if tracker_status is False:
             print(f'trying to start {C.MONITOR} again')
             manage_monitor('start')
             time_passed = 0
-
 
 
 from apps.base.tests.users import (

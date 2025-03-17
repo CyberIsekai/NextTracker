@@ -219,6 +219,13 @@ export const player_matches_delete = async (uno: PlayerUno, game_mode: GameMode)
         result[game_mode] = matches_deleted.length
     }
 
+    await in_logs(
+        uno,
+        `${player_matches_delete.name} ${game_mode}`,
+        'cod_logs_player',
+        result,
+    )
+
     return result
 }
 

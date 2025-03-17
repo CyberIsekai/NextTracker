@@ -335,7 +335,7 @@ def most_play_with_update(db: Session):
                     | uno_tags[match_uno]
                 )
 
-            if index % 100:
+            if (index % 10) == 0:
                 current_percent = int(index / len(most_common_uno_all) * 100)
                 print(most_play_with_update.__name__, game_mode, f'{current_percent}%')
 
@@ -655,6 +655,10 @@ def player_get(db: Session, uno: str, column_type: PlayerColumnType, source: str
     return player[0] if player else player
 
 
+def target_type_define(uno: str) -> TargetType:
+    return C.PLAYER if uno.isdigit() else C.GROUP
+
+
 def in_logs_game_status(
     db: Session,
     uno: str,
@@ -662,7 +666,9 @@ def in_logs_game_status(
     data_type: DataTypeOnly,
     records: int,
 ):
-    if uno.isdigit():
+    target_type = target_type_define(uno)
+
+    if target_type == C.PLAYER:
         games = player_get(
             db,
             uno,
@@ -670,7 +676,7 @@ def in_logs_game_status(
             f'{in_logs_game_status.__name__} {game_mode=} {data_type=} {records=}',
         )
     else:
-        games = redis_manage(f'{C.GROUP}:{C.UNO}_{uno}', 'hget', C.GAMES)
+        games = redis_manage(f'{target_type}:{C.UNO}_{uno}', 'hget', C.GAMES)
 
     if data_type == C.STATS and records:
         games[game_mode][C.MATCHES][C.STATS][C.PLAYED] = records
@@ -753,38 +759,42 @@ def games_summary(games: GamesStatus):
 
 def set_games(db: Session, uno: str, games: GamesStatus):
     games = games_summary(games)
-    target_type: TargetType = C.PLAYER if uno.isdigit() else C.GROUP
+    target_type = target_type_define(uno)
     redis_manage(f'{target_type}:{C.UNO}_{uno}', 'hset', {C.GAMES: games})
 
-    if target_type == C.PLAYER:
-        player_get(db, uno, C.RAW, set_games.__name__).update(
-            {STT.players.games: games}
-        )
-        db.commit()
+    if target_type != C.PLAYER:
+        return
 
-        player_group = redis_manage(f'{target_type}:{C.UNO}_{uno}', 'hget', C.GROUP)
-        players: dict[str, TargetDataBasic] | None = redis_manage(
-            f'{C.GROUP}:{C.UNO}_{player_group}', 'hget', C.PLAYERS
+    player_get(db, uno, C.RAW, set_games.__name__).update({STT.players.games: games})
+    db.commit()
+
+    player_group = redis_manage(f'{target_type}:{C.UNO}_{uno}', 'hget', C.GROUP)
+
+    if not player_group:
+        return
+
+    players: dict[str, TargetDataBasic] | None = redis_manage(
+        f'{C.GROUP}:{C.UNO}_{player_group}', 'hget', C.PLAYERS
+    )
+    if players and uno in players:
+        players[uno][C.GAMES] = games
+        redis_manage(
+            f'{C.GROUP}:{C.UNO}_{player_group}',
+            'hset',
+            {
+                C.PLAYERS: players,
+                C.GAMES: group_players_games(
+                    [player[C.GAMES] for player in players.values()]
+                ),
+            },
         )
-        if players and uno in players:
-            players[uno][C.GAMES] = games
-            redis_manage(
-                f'{C.GROUP}:{C.UNO}_{player_group}',
-                'hset',
-                {
-                    C.PLAYERS: players,
-                    C.GAMES: group_players_games(
-                        [player[C.GAMES] for player in players.values()]
-                    ),
-                },
-            )
-        else:
-            in_logs(
-                uno,
-                f'{set_games.__name__} {C.GROUP} [{player_group}] {C.NOT_FOUND}',
-                'cod_logs_error',
-                players,
-            )
+    else:
+        in_logs(
+            uno,
+            f'{set_games.__name__} {C.GROUP} [{player_group}] {C.NOT_FOUND}',
+            'cod_logs_error',
+            players,
+        )
 
 
 def format_column(column: str):
@@ -1340,14 +1350,13 @@ def target_data_stats_save(
     value: Chart | MostPlayWith | Loadout,
 ):
     value[C.TIME] = now(C.ISO)
-    if uno.isdigit():
+    target_type = target_type_define(uno)
+
+    if target_type == C.PLAYER:
         player_get(db, uno, C.RAW, f'{target_data_stats_save.__name__} {name=}').update(
             {STT.players.__dict__[name]: value}
         )
         db.commit()
-        target_type: TargetType = C.PLAYER
-    else:
-        target_type: TargetType = C.GROUP
 
     redis_manage(f'{target_type}:{C.UNO}_{uno}', 'hset', {name: value})
 

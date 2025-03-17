@@ -1,6 +1,4 @@
-import {
-    C,
-} from '@/app/components/Consts'
+import { C } from '@/app/components/Consts'
 import { PlayerData } from '@/app/components/zod/Player'
 import { GroupData } from '@/app/components/zod/Group'
 import {
@@ -9,6 +7,7 @@ import {
     GameModeMwSchema,
     GameModeSchema,
 } from '@/app/components/zod/GameMode'
+import { TargetType } from '@/app/components/zod/Main'
 
 export const is_best_record = (stat_name: string) => (
     ['longestStreak', 'currentWinStreak'].includes(stat_name) ||
@@ -68,3 +67,7 @@ export const is_group = (target_data?: object | null): target_data is GroupData 
     if (!target_data) return false
     return (target_data as GroupData).players !== undefined
 }
+
+export const target_type_define = (uno: string): TargetType => (
+    is_number(uno) ? C.PLAYER : C.GROUP
+)

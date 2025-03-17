@@ -67,6 +67,13 @@ def f_users():
     # set admin token for protected routes
     body: UserAuthorize = {C.LOGIN: users[2][C.LOGIN], C.PASSWORD: users[2][C.PASSWORD]}
     resp = TS.client.post(f'{TS.FASTAPI_API_PATH}/login', json=body)
+    TS.check_response(
+        resp,
+        status.HTTP_200_OK,
+        f_users.__name__,
+        (C.LOGIN, body[C.LOGIN]),
+        body,
+    )
     result: UserProfile = resp.json()
     TS.ROLE_TOKENS[C.ADMIN] = result[C.TOKEN]
 

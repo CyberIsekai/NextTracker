@@ -96,8 +96,8 @@ export default function MatchStatsCard({ match_body, is_modal }: {
             <title>{`${player.username} | ${GAME_MODE_TITLES[game_mode]}`}</title>
             <header
                 className={`
-        p-3 flex items-center justify-between h-12 relative rounded-t-xl
-        ${get_result_color(player.result, game_mode, 'bg')}`}
+                    p-3 flex items-center gap-2 justify-between h-12 relative rounded-t-xl
+                    ${get_result_color(player.result, game_mode, 'bg')}`}
             >
                 <button
                     type="button"

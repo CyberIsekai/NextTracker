@@ -1161,8 +1161,6 @@ def test_reset():
         C.CHART,
         C.LOADOUT,
         'matches_stats',
-        'base_stats',
-        'tracker_stats',
         'clear_players_match_doubles',
     )
     resets += status_resets

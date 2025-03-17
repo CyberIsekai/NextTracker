@@ -12,6 +12,7 @@ from core.database import get_db
 from apps.base.schemas.main import C, STask
 from apps.base.crud.utils import (
     get_message_response,
+    in_logs,
     now,
     redis_manage,
     users_cache_set,
@@ -142,7 +143,21 @@ def monitor_tasks():
             continue
 
         with next(get_db()) as db:
-            task_start(db, task)
+            try:
+                task_start(db, task)
+            except Exception as e:
+                trace = traceback.format_exc()
+                settings.LOGGING.error(trace)
+                in_logs(
+                    C.MONITOR,
+                    f'{C.MONITOR} start {task_start.__name__} {C.ERROR} [{e}]',
+                    'logs_error',
+                    {
+                        C.DETAIL: type(e).__name__,
+                        'trace': trace,
+                        'task': task,
+                    },
+                )
 
 
 if __name__ == '__main__':

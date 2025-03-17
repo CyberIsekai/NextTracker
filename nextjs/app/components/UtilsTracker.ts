@@ -57,6 +57,7 @@ import {
     is_player,
     is_group,
     is_game_mode_mw,
+    target_type_define,
 } from '@/app/components/UtilsValidators'
 import {
     extract_ratio,
@@ -632,7 +633,7 @@ export const get_played_stat = async (
 }
 
 export const game_stats_get = async (uno: Uno, game_mode: GameMode) => {
-    const target_type: TargetType = is_number(uno) ? C.PLAYER : C.GROUP
+    const target_type = target_type_define(uno)
     const games_stats = await redis_manage(
         `${target_type}:${C.UNO}_${uno}`, 'hget', C.GAMES_STATS
     )
@@ -699,7 +700,7 @@ export const games_summary = async (games: GamesStatus) => {
 
 export const set_games = async (uno: Uno, games: GamesStatus) => {
     games = await games_summary(games)
-    const target_type: TargetType = is_number(uno) ? C.PLAYER : C.GROUP
+    const target_type = target_type_define(uno)
     await redis_manage(`${target_type}:${C.UNO}_${uno}`, 'hset', { games })
 
     if (target_type === C.PLAYER) {

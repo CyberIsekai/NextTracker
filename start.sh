@@ -1009,5 +1009,4 @@ color_echo "Setup finish.
 Address: http://${STATIC_IP_2:-$STATIC_IP}/
 " "32"
 
-color_echo "Start running tests" "33"
 rerun_script "fastapi" "run tests"

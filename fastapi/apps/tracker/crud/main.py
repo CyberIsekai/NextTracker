@@ -29,7 +29,6 @@ from apps.base.crud.utils import (
     date_format,
     get_base_stats,
     get_last_id,
-    is_number,
     redis_manage,
     now,
     time_taken_get,
@@ -128,7 +127,6 @@ from apps.tracker.schemas.main import (
     YearWzTable,
     DataTypeOnly,
     UpdateRouterDataType,
-    TargetType,
     SPlayerParsed,
     MatchResultMp,
 )
@@ -151,6 +149,7 @@ from apps.tracker.crud.utils import (
     players_cache_update,
     add_to_task_queues,
     in_logs_queues,
+    target_type_define,
     validate_group_name,
     player_format_search,
     is_best_record,
@@ -159,7 +158,7 @@ from apps.tracker.crud.utils import (
 
 
 def test(db: Session, target: str):  # pylint: disable=unused-argument
-    return
+    return loadout_update(db)
 
 
 def panel_get(db: Session) -> Panel:
@@ -860,6 +859,17 @@ def player_matches_update(
     return counter[C.MATCHES]
 
 
+def player_logs_delete(db: Session, uno: str):
+    table = LOGS_TABLES['cod_logs_player']
+    deleted = db.query(table).filter(table.target == uno).delete()
+    db.commit()
+    in_logs(
+        uno,
+        f'{player_logs_delete.__name__} {C.DELETED} [{deleted}] {C.LOGS}',
+        'cod_logs_player',
+    )
+
+
 def player_matches_delete(db: Session, uno: str, game_mode: GameMode):
     result: PlayerMatchesDeleteResponse = {
         C.MW_MP: 0,
@@ -876,6 +886,13 @@ def player_matches_delete(db: Session, uno: str, game_mode: GameMode):
         result[game_mode] = db.query(table).filter(table.uno == uno).delete()
 
     db.commit()
+
+    in_logs(
+        uno,
+        f'{player_matches_delete.__name__} {game_mode}',
+        'cod_logs_player',
+        result,
+    )
 
     return result
 
@@ -961,8 +978,8 @@ def player_delete(db: Session, uno: str) -> Message | Error:
     message = f'{C.PLAYER} {C.DELETED} [{player.username[0]}]'
     db.delete(player)
     db.commit()
-
     set_table_sequence(db, STT.players.__tablename__)
+    player_logs_delete(db, uno)
     players_cache_update(db)
     in_logs(uno, message, 'cod_logs_player')
 
@@ -1150,6 +1167,7 @@ def validate_update_group(group: GroupData, game_mode: GameMode, data_type: Data
 
 def task_start(db: Session, task: Task):
     uno: str = task[C.UNO]
+    target_type = target_type_define(uno)
     game_mode: GameMode = task[C.GAME_MODE]
     data_type: DataType = task[C.DATA_TYPE]
     # update status for task in task queues
@@ -1161,7 +1179,7 @@ def task_start(db: Session, task: Task):
     start = time.perf_counter()
 
     try:
-        if uno.isdigit():
+        if target_type == C.PLAYER:
             if game_mode == C.ALL:
                 player_all_update(db, uno, data_type)
             elif data_type in (C.MATCHES, C.MATCHES_HISTORY):
@@ -1171,7 +1189,7 @@ def task_start(db: Session, task: Task):
             elif data_type == C.FULLMATCHES_PARS:
                 fullmatches_pars_player(db, uno, game_mode)
 
-        elif uno in target_unos_get(C.GROUP):
+        elif uno in target_unos_get(target_type):
             if data_type in (C.MATCHES, C.STATS):
                 group_update(db, uno, game_mode, data_type)
             elif data_type == C.FULLMATCHES_PARS:
@@ -1194,13 +1212,13 @@ def task_start(db: Session, task: Task):
 
         message = f'{task[C.STATUS]} {data_type} [{time_taken_get(start)}]'
 
-        username: str | None = (
-            redis_manage(f'{C.PLAYER}:{C.UNO}_{uno}', 'hget', C.USERNAME) or [None]
-        )[0]
-        in_logs_cod_logs_cache(username or uno, game_mode, message)
-        if uno.isdigit():
+        if target_type == C.PLAYER:
+            username = redis_manage(f'{target_type}:{C.UNO}_{uno}', 'hget', C.USERNAME)
+            username = username[0] if username else uno
+            in_logs_cod_logs_cache(username, game_mode, message)
             in_logs(uno, f'{game_mode} {message}', 'cod_logs_player')
         else:
+            in_logs_cod_logs_cache(uno, game_mode, message)
             in_logs(uno, message, 'cod_logs')
 
 
@@ -1511,7 +1529,8 @@ def fullmatches_load(db: Session, game_mode: GameMode):
 
 
 def stats_router(db: Session, body: StatsRouter) -> GameStats | Error:
-    if body.uno.isdigit():
+    target_type = target_type_define(body.uno)
+    if target_type == C.PLAYER:
         return stats_get_player(db, body.uno, body.game)
 
     return json_error(status.HTTP_404_NOT_FOUND, f'[{body.uno}] {C.NOT_FOUND}')
@@ -1624,7 +1643,7 @@ def stats_update_player(db: Session, uno: str, game_mode: GameModeOnly):
 
 
 def validate_update(uno: str, game_mode: GameMode, data_type: UpdateRouterDataType):
-    target_type: TargetType = C.PLAYER if uno.isdigit() else C.GROUP
+    target_type = target_type_define(uno)
     target_data = redis_manage(f'{target_type}:{C.UNO}_{uno}', 'hgetall')
 
     if not target_data:
@@ -1678,7 +1697,7 @@ def matches_router(db: Session, body: Router) -> MatchesResponse:
     query_target = ''
 
     if data_type == C.UNO:
-        target_type: TargetType = C.PLAYER if is_number(target) else C.GROUP
+        target_type = target_type_define(target)
 
         if target == C.TRACKER:
             pass
@@ -2146,8 +2165,8 @@ def fill_all_matches(
 def loadout_update(db: Session):
     player_to_group: dict[str, str] = {}
     for uno in target_unos_get(C.PLAYER):
-        player_group = redis_manage(f'{C.PLAYER}:{C.UNO}_{uno}', 'hget', C.GROUP)
-        player_to_group[uno] = player_group
+        if player_group := redis_manage(f'{C.PLAYER}:{C.UNO}_{uno}', 'hget', C.GROUP):
+            player_to_group[uno] = player_group
 
     game_modes = SGM.modes(C.MW)
     targets: dict[str, dict[GameMode, list[LoadoutStatsData]]] = {
@@ -2200,8 +2219,8 @@ def loadout_update(db: Session):
 def update_chart(db: Session) -> None:
     player_to_group: dict[str, str] = {}
     for uno in target_unos_get(C.PLAYER):
-        player_group = redis_manage(f'{C.PLAYER}:{C.UNO}_{uno}', 'hget', C.GROUP)
-        player_to_group[uno] = player_group
+        if player_group := redis_manage(f'{C.PLAYER}:{C.UNO}_{uno}', 'hget', C.GROUP):
+            player_to_group[uno] = player_group
 
     # Fill targets with game modes
     targets: dict[str, dict[GameMode, list[str]]] = {

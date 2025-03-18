@@ -202,6 +202,7 @@ def most_common_uno_game_mode_get(db: Session, game_mode: GameMode):
 
 @log_time_wrap
 def most_play_with_update(db: Session):
+    # TODO add most_play_with stats for groups
     most_common_uno_all = most_common_uno_game_mode_get(db, C.ALL)
     TOP_LIMIT = 50
     time_now = now(C.ISO)
@@ -1033,7 +1034,9 @@ def tracker_stats_get(db: Session):
 
 
 def tracker_stats_summary(db: Session, group: GroupData):
+    # TODO integrate to tracker_stats_update
     data: TrackerStatsValue = tracker_stats_get(db)[C.DATA]
+    group[C.MOST_PLAY_WITH] = data[C.MOST_PLAY_WITH]
 
     # reset matches stats for tracker
     for game_mode in SGM.modes(C.ALL, C.ALL):

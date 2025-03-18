@@ -593,9 +593,6 @@ export const tracker_stats_update = async (): Promise<TrackerStats> => {
         (rows, stat) => rows + stat, 0
     )
 
-    const most_play_with = await most_play_with_update()
-    await redis_manage(`${C.GROUP}:${C.UNO}_${C.TRACKER}`, 'hset', { most_play_with })
-
     const data: TrackerStatsValue = {
         matches,
         fullmatches_main,
@@ -608,8 +605,14 @@ export const tracker_stats_update = async (): Promise<TrackerStats> => {
             cod_logs_search: await get_stats_row(schema.cod_logs_search),
             cod_logs_task_queues: await get_stats_row(schema.cod_logs_task_queues),
         },
-        most_play_with,
+        most_play_with: await most_play_with_update(),
     }
+
+    await redis_manage(
+        `${C.GROUP}:${C.UNO}_${C.TRACKER}`,
+        'hset',
+        { most_play_with: data.most_play_with }
+    )
 
     const time = new Date()
 

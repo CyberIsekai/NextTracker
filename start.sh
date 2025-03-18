@@ -478,14 +478,14 @@ fi
 
 color_echo "Setup $APP_NAME started" "32"
 
-# if confirm "Update repositories ?"; then
-#     if [[ "$IS_MANJARO" == true ]]; then
-#         sudo pacman -Syu
-#     else
-#         sudo apt-get update
-#     fi
-# fi
-# echo
+if confirm "Update repositories ?"; then
+    if [[ "$IS_MANJARO" == true ]]; then
+        sudo pacman -Syu
+    else
+        sudo apt-get update
+    fi
+fi
+echo
 
 [ ! -d "logs" ] && mkdir "logs"
 
@@ -495,18 +495,17 @@ STATIC_IP=localhost
 STATIC_IP_2="${ipv4_addresses[0]}"
 STATIC_IP_3="${ipv4_addresses[1]}"
 
-PHYSICAL_CORES=$(lscpu | grep 'Core(s) per socket' | awk '{print $NF}')
+PHYSICAL_CORES=$(grep 'core id' /proc/cpuinfo | sort -u | wc -l)
 
 if [ -f "fastapi/.venv/bin/activate" ]; then
     source fastapi/.venv/bin/activate
 elif confirm "Install python-venv with packages: \n$(cat fastapi/requirements.txt)"; then
 
-    # if [[ "$IS_MANJARO" == true ]]; then
-    #     sudo pacman -S python -y
-    # else
-    #     # sudo add-apt-repository -y ppa:deadsnakes/ppa
-    #     sudo apt-get install python3 python3-venv -y
-    # fi
+    if [[ "$IS_MANJARO" == true ]]; then
+        sudo pacman -S python -y
+    else
+        sudo apt-get install python3 python3-venv -y
+    fi
 
     color_echo "Create and activate python venv" "33"
     python3 -m venv fastapi/.venv
@@ -529,9 +528,6 @@ if ! which redis-server >/dev/null && confirm "Install redis ?"; then
         sudo apt-get install redis -y
     fi
     sudo systemctl daemon-reload
-    if confirm "Enable system startup for redis ?"; then
-        manage_process "redis" "enable"
-    fi
 fi
 ! pgrep "redis" >/dev/null && manage_process "redis" "start"
 
@@ -675,8 +671,8 @@ EOL"
     color_echo "Allow $USER to run (psql, $APP_NAME) without sudo
     '/etc/sudoers.d/$APP_NAME' created" "33"
 
-    DATABASE_EXIST=$(sudo -u postgres psql -lqt | grep "$DATABASE_NAME")
-    if [[ -n "$DATABASE_EXIST" ]]; then
+    DATABASE_EXIST=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DATABASE_NAME'")
+    if [[ "$DATABASE_EXIST" == "1" ]]; then
         color_echo "
         [$DATABASE_NAME] database already exist
         $DATABASE_EXIST
@@ -762,7 +758,7 @@ print(hashed)
         color_echo "User [$ADMIN_LOGIN] was added as admin on tracker with given password" "32"
     fi
 
-    if confirm "Allow outside connect to PostgreSQL ?"; then
+    if confirm "Allow outside connect to PostgreSQL (5432 port) ?"; then
         # Set the configuration file paths
         PG_CONF=/etc/postgresql/$PG_VERSION/main/postgresql.conf
         PG_HBA_CONF=/etc/postgresql/$PG_VERSION/main/pg_hba.conf
@@ -783,7 +779,8 @@ print(hashed)
         read -p "Enter the address from which the connection will be: " REMOTE_HOST
         if [[ -n "$REMOTE_HOST" ]]; then
             echo "host    all     all     $REMOTE_HOST/32    scram-sha-256" | sudo tee -a $PG_HBA_CONF >/dev/null
-            color_echo "REMOTE_HOST access $REMOTE_HOST added to $PG_HBA_CONF" "32"
+            sudo ufw allow 5432/tcp
+            color_echo "REMOTE_HOST access via 5432 port $REMOTE_HOST added to $PG_HBA_CONF" "32"
         else
             color_echo "REMOTE_HOST was empy" "35"
         fi
@@ -903,6 +900,7 @@ http {
 
 EOL'
     color_echo "Nginx config added" "32"
+    sudo ufw allow 'Nginx Full'
     sudo nginx -t
     manage_process "nginx" "restart"
 else
@@ -914,9 +912,10 @@ if (! command -v node &>/dev/null || ! command -v npm &>/dev/null) && confirm "I
     if [[ "$IS_MANJARO" == true ]]; then
         sudo pacman -S nodejs npm
     else
-        wget -q -O- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
-        source ~/.bashrc
-        nvm install node
+        sudo apt install -y curl
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.2/install.sh | bash
+        \. "$HOME/.nvm/nvm.sh"
+        nvm install 22
     fi
 fi
 echo

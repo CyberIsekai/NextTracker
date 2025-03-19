@@ -40,6 +40,8 @@ import {
   MessageStatus,
   MessageStatusSchema,
   TimeType,
+  AppType,
+  AppTypeSchema,
 } from '@/app/components/zod/Main'
 import {
   GroupUno,
@@ -238,13 +240,14 @@ export const decode = (text: string) => Buffer.from(text, 'base64').toString('bi
 export const get_url = (
   path: string,
   url_type: 'default' | 'ws' | 'img' = 'default',
-  api_version: 'fastapi' | 'nextjs' = 'fastapi'
+  app_type: AppType = 'fastapi'
 ) => {
-
-  const api_path =
-    api_version === 'fastapi' ? process.env.FASTAPI_API_PATH! :
-      api_version === 'nextjs' ? process.env.NEXTJS_API_PATH! :
-        ''
+  const app_type_validated = AppTypeSchema.parse(app_type)
+  const api_paths: Record<AppType, string> = {
+    fastapi: process.env.FASTAPI_API_PATH!,
+    nextjs: process.env.NEXTJS_API_PATH!,
+  }
+  const api_path = api_paths[app_type_validated]
 
   switch (url_type) {
     case 'default':
@@ -257,10 +260,10 @@ export const get_url = (
       path = `/map/${path}`
       break
     default:
-      throw new Error(`Invalid name parameter: ${url_type}`)
+      throw new Error(`${C.NOT_VALID} ${C.NAME} parameter: ${url_type}`)
   }
 
-  if (api_version === 'nextjs') return path
+  if (app_type_validated === 'nextjs') return path
 
   let hostname = sessionStorage.getItem('hostname')
   if (!hostname) {
@@ -281,7 +284,7 @@ export async function fetch_request<T>(
   path: string,
   body?: object | FormData,
   method?: RequestMethod,
-  api_version: 'fastapi' | 'nextjs' = 'fastapi'
+  app_type: AppType = 'fastapi'
 ) {
   let data: T & { detail?: string } | undefined
 
@@ -295,7 +298,7 @@ export async function fetch_request<T>(
   }
 
   try {
-    const url = get_url(path, 'default', api_version)
+    const url = get_url(path, 'default', app_type)
     const res = await fetch(url, options)
     data = await res.json()
 

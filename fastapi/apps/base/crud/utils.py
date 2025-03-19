@@ -27,6 +27,7 @@ from core.database import get_db
 from apps.base.crud.store_tables import SBT
 from apps.base.crud.utils_data_init import LOGS_TABLES
 from apps.base.models.main import users
+from apps.base.schemas.basic import AppType
 from apps.base.schemas.main import (
     C,
     StatsRow,
@@ -575,6 +576,7 @@ def in_logs(
     source: LogsBasic,
     data: dict | None = None,
 ) -> None:
+    message = f'fastapi {message}'
     table = LOGS_TABLES[source]
     row = table(target=target, message=message)
     if data:
@@ -795,7 +797,7 @@ def get_message_response(res: dict | JSONResponse):
     return body[C.DETAIL]
 
 
-def manage_service(name: Literal['fastapi', 'nextjs'], action: str):
+def manage_service(name: AppType, action: str):
     if name == 'fastapi':
         service = settings.FASTAPI_APP_NAME
     elif name == 'nextjs':

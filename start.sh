@@ -920,12 +920,10 @@ if (! command -v node &>/dev/null || ! command -v npm &>/dev/null) && confirm "I
 fi
 echo
 
-NODE_PATH=$(which node | sed 's/\/node$//')
-
 color_echo "Add nextjs as service $NEXTJS_CONFIG" "32"
 sudo bash -c "cat > $NEXTJS_CONFIG << EOL
 [Unit]
-Description=Nextjs
+Description=$NEXTJS_APP_NAME
 After=network.target
 
 [Service]
@@ -933,9 +931,8 @@ Type=simple
 User=$USER
 Group=$USER
 WorkingDirectory=$CURRENT_DIRECTORY/nextjs
-Environment=PATH=$NODE_PATH:/usr/local/bin:/usr/bin:/bin
+ExecStart="$(which node)" $CURRENT_DIRECTORY/nextjs/node_modules/.bin/next start
 Environment=NODE_ENV=production
-ExecStart=$NODE_PATH/node $CURRENT_DIRECTORY/nextjs/node_modules/.bin/next start
 Restart=always
 RestartSec=10
 StandardOutput=syslog

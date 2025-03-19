@@ -596,12 +596,6 @@ def tracker_stats_update(db: Session) -> TrackerStats:
         C.MOST_PLAY_WITH: most_play_with_update(db),
     }
 
-    redis_manage(
-        f'{C.GROUP}:{C.UNO}_{C.TRACKER}',
-        'hset',
-        {C.MOST_PLAY_WITH: data[C.MOST_PLAY_WITH]},
-    )
-
     config_get(db, C.STATS, C.TRACKER).update(
         {SBT.configs.data: data, SBT.configs.time: now()}
     )
@@ -624,7 +618,7 @@ async def send(ws: WebSocket, message: str, status: int, result=None):
 def player_get(db: Session, uno: str, column_type: PlayerColumnType, source: str):
     in_logs(
         uno,
-        f'fastapi [{player_get.__name__}] {column_type} {source}',
+        f'[{player_get.__name__}] {column_type} {source}',
         'cod_logs_player',
     )
 

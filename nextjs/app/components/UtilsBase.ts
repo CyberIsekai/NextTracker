@@ -64,6 +64,7 @@ export const in_logs = async (
     source: LogsBasic,
     data: object | null = null,
 ) => {
+    message = `[nextjs] ${message}`
     if (source.includes(C.ERROR)) {
         in_logs_file(`${C.ERROR} ${C.LOGS}
         ${C.TARGET}: ${target}

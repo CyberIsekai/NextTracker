@@ -754,7 +754,7 @@ const PlayerRow = ({ player_data, players_filter }: {
             // }
 
             try {
-                await player_update(uno, { time })
+                await player_update(uno, { time }, `panel ${PlayerTime.name}`)
                 setPlayer(prev => ({ ...prev, time }))
             } catch {
                 alert_column_error(C.TIME)

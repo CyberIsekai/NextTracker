@@ -528,7 +528,7 @@ def test_update_router():
                 test_update_router.__name__,
                 expected,
                 {
-                    'game_mode': game_mode,
+                    C.GAME_MODE: game_mode,
                     C.UNO: player[C.UNO],
                 },
             )

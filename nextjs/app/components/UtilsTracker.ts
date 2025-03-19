@@ -245,7 +245,7 @@ export async function player_get(
 ) {
     in_logs(
         uno,
-        `nextjs ${player_get.name} ${column_type} ${source}`,
+        `${player_get.name} ${column_type} ${source}`,
         'cod_logs_player',
     )
 
@@ -296,13 +296,14 @@ export async function player_get(
 }
 export const player_update = async <T extends typeof schema.cod_players>(
     uno: PlayerUno,
-    data: Partial<{ [K in keyof T['$inferInsert']]?: T['$inferInsert'][K] }>
+    data: Partial<{ [K in keyof T['$inferInsert']]?: T['$inferInsert'][K] }>,
+    source: string,
 ) => {
     await db
         .update(schema.cod_players)
         .set(data)
         .where(eq(schema.cod_players.uno, uno))
-    in_logs(uno, `${player_update.name} ${Object.keys(data)}`, 'cod_logs_player')
+    in_logs(uno, `${player_update.name} ${Object.keys(data)} ${source}`, 'cod_logs_player')
 }
 
 export async function player_matches_stats_update(
@@ -608,12 +609,6 @@ export const tracker_stats_update = async (): Promise<TrackerStats> => {
         most_play_with: await most_play_with_update(),
     }
 
-    await redis_manage(
-        `${C.GROUP}:${C.UNO}_${C.TRACKER}`,
-        'hset',
-        { most_play_with: data.most_play_with }
-    )
-
     const time = new Date()
 
     await db.update(schema.configs)
@@ -706,35 +701,38 @@ export const set_games = async (uno: Uno, games: GamesStatus) => {
     const target_type = target_type_define(uno)
     await redis_manage(`${target_type}:${C.UNO}_${uno}`, 'hset', { games })
 
-    if (target_type === C.PLAYER) {
-        await player_update(uno, { games })
+    if (target_type !== C.PLAYER) return
 
-        // also update in groups cache
-        const player_group = await redis_manage(
-            `${C.PLAYER}:${C.UNO}_${uno}`, 'hget', C.GROUP
+    await player_update(uno, { games }, set_games.name)
+
+    // also update in groups cache
+    const player_group = await redis_manage(
+        `${C.PLAYER}:${C.UNO}_${uno}`, 'hget', C.GROUP
+    )
+
+    if (!player_group) return
+
+    const players = await redis_manage(
+        `${C.GROUP}:${C.UNO}_${player_group}`, 'hget', C.PLAYERS
+    )
+    if (players && uno in players) {
+        players[uno].games = games
+        await redis_manage(
+            `${C.GROUP}:${C.UNO}_${player_group}`,
+            'hset',
+            {
+                players,
+                games: await group_players_games(
+                    Object.values(players).map(player => player.games)
+                ),
+            },
         )
-        const players = await redis_manage(
-            `${C.GROUP}:${C.UNO}_${player_group}`, 'hget', C.PLAYERS
+    } else {
+        in_logs(
+            uno,
+            `${set_games.name} ${C.GROUP} [${player_group}] ${C.NOT_FOUND}`,
+            'cod_logs_error'
         )
-        if (player_group && players && uno in players) {
-            players[uno].games = games
-            await redis_manage(
-                `${C.GROUP}:${C.UNO}_${player_group}`,
-                'hset',
-                {
-                    players,
-                    games: await group_players_games(
-                        Object.values(players).map(player => player.games)
-                    ),
-                },
-            )
-        } else {
-            in_logs(
-                uno,
-                `${set_games.name} ${C.GROUP} [${player_group}] ${C.NOT_FOUND}`,
-                'cod_logs_error'
-            )
-        }
     }
 }
 
@@ -1338,7 +1336,7 @@ export const stats_update_player = async (uno: PlayerUno, game_mode: GameModeOnl
         time: new Date().toISOString(),
     })
 
-    await player_update(uno, { games, games_stats })
+    await player_update(uno, { games, games_stats }, stats_update_player.name)
 
     return games_stats
 }
@@ -1786,7 +1784,7 @@ export const most_play_with_update = async () => {
         if (games) {
             games.mw_mp.matches.stats.fullmatches = players[uno].fullmatches.mw_mp
             games.mw_wz.matches.stats.fullmatches = players[uno].fullmatches.mw_wz
-            player_update(uno, { ...player_data, games })
+            player_update(uno, { ...player_data, games }, most_play_with_update.name)
         } else {
             const games = games_create(
                 uno,

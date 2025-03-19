@@ -1,6 +1,9 @@
 import { z } from 'zod'
 import { C } from '@/app/components/Consts'
 
+export const AppTypeSchema = z.enum(['nextjs', 'fastapi'])
+export type AppType = z.infer<typeof AppTypeSchema>
+
 export const TimeTypeSchema = z.enum([
     'second', 'minute', 'hour', 'day', 'week', 'month', 'year'
 ])

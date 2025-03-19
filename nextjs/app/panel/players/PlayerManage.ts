@@ -81,7 +81,7 @@ export const player_edit_game_status = async (uno: PlayerUno, game_mode: GameMod
 }
 
 export const player_edit_games = async (uno: PlayerUno, games: GamesStatus) => {
-    await player_update(uno, { games })
+    await player_update(uno, { games }, player_edit_games.name)
     await redis_manage(`${C.PLAYER}:${C.UNO}_${uno}`, 'hset', { games })
 }
 
@@ -230,6 +230,10 @@ export const player_matches_delete = async (uno: PlayerUno, game_mode: GameMode)
 }
 
 export const player_edit_group = async (uno: PlayerUno, group: string | null) => {
-    await player_update(uno, { group: PlayerGroupSchema.parse(group) })
+    await player_update(
+        uno,
+        { group: PlayerGroupSchema.parse(group) },
+        player_edit_group.name,
+    )
     players_cache_update()
 }

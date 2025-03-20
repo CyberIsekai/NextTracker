@@ -18,5 +18,5 @@ fastapi/alembic/versions.back
 nextjs/app/components/drizzle/migrations
 
 static/files/dumps
-static/files/tables_optional.zip
+# static/files/tables_optional.zip
 static/temp

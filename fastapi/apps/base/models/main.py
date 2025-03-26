@@ -1,12 +1,12 @@
 # pylint: disable=unused-import, multiple-statements
 from sqlalchemy import (
     Column,
+    Integer,
     SmallInteger,
     String,
     Text,
     TIMESTAMP,
     JSON,
-    DateTime,
 )
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import JSONB
@@ -38,6 +38,7 @@ from apps.tracker.models.main import (
 
 
 class Users(Base):
+    id = Column(Integer, primary_key=True, index=True)
     status = Column(SmallInteger, nullable=False, server_default='0')
     login = Column(
         String(settings.NAME_LIMIT_2), nullable=False, unique=True, index=True
@@ -59,6 +60,7 @@ class Users(Base):
 
 
 class users_role(Base):
+    id = Column(Integer, primary_key=True, index=True)
     name = Column(String(settings.NAME_LIMIT), nullable=False, unique=True)
     level = Column(SmallInteger, nullable=False, server_default='0')
     access = Column(JSON, nullable=False, server_default=r'[]')
@@ -66,6 +68,7 @@ class users_role(Base):
 
 
 class configs(Base):
+    id = Column(Integer, primary_key=True, index=True)
     name = Column(String(settings.NAME_LIMIT), nullable=False)
     source = Column(String(settings.NAME_LIMIT), nullable=False)
     data = Column(JSONB(astext_type=Text()), nullable=False, server_default=r'{}')

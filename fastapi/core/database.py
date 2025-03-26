@@ -6,8 +6,6 @@ from core.config import settings
 
 
 class DefaultTable:
-    id = Column(Integer, primary_key=True, index=True)
-
     @declared_attr
     def __tablename__(cls):
         return cls.__name__.lower()

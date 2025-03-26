@@ -18,10 +18,10 @@ FASTAPI_API_PATH=/api/fastapi
 FASTAPI_SOCK_FILE=runing.sock
 FASTAPI_MONITOR_NAME=monitor.py
 
-if grep -q "ID=manjaro" /etc/os-release; then
-    IS_MANJARO=true
+if grep -q "ID_LIKE=arch" /etc/os-release; then
+    IS_ARCH=true
 else
-    IS_MANJARO=false
+    IS_ARCH=false
 fi
 
 if [ -d "/run/systemd/system" ]; then
@@ -476,18 +476,18 @@ if [ -f .env ]; then
     exit
 fi
 
-! confirm "Setup $APP_NAME ?" && exit
+if ! confirm "Setup $APP_NAME ?"; then
+    color_echo "Setup $APP_NAME stopped" "32"
+    exit
+fi
 
 color_echo "Setup $APP_NAME started" "32"
 
-if confirm "Update repositories ?"; then
-    if [[ "$IS_MANJARO" == true ]]; then
-        sudo pacman -Syu
-    else
-        sudo apt-get update
-    fi
+if [[ "$IS_ARCH" == true ]]; then
+    sudo pacman -Syu
+else
+    sudo apt update
 fi
-echo
 
 [ ! -d "logs" ] && mkdir "logs"
 
@@ -503,10 +503,10 @@ if [ -f "fastapi/.venv/bin/activate" ]; then
     source fastapi/.venv/bin/activate
 elif confirm "Install python-venv with packages: \n$(cat fastapi/requirements.txt)"; then
 
-    if [[ "$IS_MANJARO" == true ]]; then
+    if [[ "$IS_ARCH" == true ]]; then
         sudo pacman -S python -y
     else
-        sudo apt-get install python3 python3-venv -y
+        sudo apt install python3 python3-venv -y
     fi
 
     color_echo "Create and activate python venv" "33"
@@ -522,26 +522,26 @@ fi
 echo
 
 # Check if redis not installed and ask for install
-if ! which redis-server >/dev/null && confirm "Install redis ?"; then
-    if [[ "$IS_MANJARO" == true ]]; then
+if ! which redis-server >/dev/null 2>&1 && confirm "Install redis ?"; then
+    if [[ "$IS_ARCH" == true ]]; then
         sudo pacman -S redis -y
     else
         [ -n "$REPOSITORY" ] && sudo add-apt-repository -y "$REPOSITORY"
-        sudo apt-get install redis -y
+        sudo apt install redis -y
     fi
     sudo systemctl daemon-reload
 fi
-! pgrep "redis" >/dev/null && manage_process "redis" "start"
+! pgrep "redis" >/dev/null 2>&1 && manage_process "redis" "start"
 
 # Check if PostgreSQL not installed and ask for install
 if ! command -v psql >/dev/null 2>&1 && confirm "Install PostgreSQL?"; then
-    if [[ "$IS_MANJARO" == true ]]; then
+    if [[ "$IS_ARCH" == true ]]; then
         sudo pacman -S postgresql
     else
         sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" \
         > /etc/apt/sources.list.d/pgdg.list'
         sudo wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-        sudo apt-get install postgresql -y
+        sudo apt install postgresql -y
     fi
 
     color_echo "Setting password for postgres..." "33"
@@ -703,6 +703,16 @@ EOL"
             color_echo "Found folder $TRACKER_FOLDER with tables:" "33"
             sudo ls -A $TRACKER_FOLDER
         else
+
+            if ! which unzip >/dev/null 2>&1 && confirm "
+            Install 'unzip' for extract necessary tables ?"; then
+                if [[ "$IS_ARCH" == true ]]; then
+                    sudo pacman -S unzip -y
+                else
+                    sudo apt install unzip -y
+                fi
+            fi
+
             sudo rm -rf "$TRACKER_FOLDER"
             sudo mkdir $TRACKER_FOLDER # create folder and copy csv tables dumps
 
@@ -793,11 +803,11 @@ echo
 
 # Check if Nginx not installed and ask for install
 if ! command -v nginx &>/dev/null && confirm "Install nginx ?"; then
-    if [[ "$IS_MANJARO" == true ]]; then
+    if [[ "$IS_ARCH" == true ]]; then
         sudo pacman -S nginx -y
     else
         sudo add-apt-repository -y ppa:nginx/stable
-        sudo apt-get install nginx -y
+        sudo apt install nginx -y
     fi
     if confirm "Enable system startup for nginx ?"; then
         manage_process "nginx" "enable"
@@ -909,7 +919,7 @@ fi
 echo
 
 if (! command -v node &>/dev/null || ! command -v npm &>/dev/null) && confirm "Install current Node.js and npm?"; then
-    if [[ "$IS_MANJARO" == true ]]; then
+    if [[ "$IS_ARCH" == true ]]; then
         sudo pacman -S nodejs npm
     else
         sudo apt install -y curl

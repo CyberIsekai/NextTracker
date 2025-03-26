@@ -125,81 +125,6 @@ def most_common_uno_game_mode_get(db: Session, game_mode: GameMode):
     return most_common_uno_game_mode
 
 
-# @log_time_wrap
-# def most_play_with_update(db: Session):
-#     group_unos = defaultdict(set[str])
-#     player_to_group: dict[str, str] = {}
-#     for uno in target_unos_get(C.PLAYER):
-#         player_group = redis_manage(f'{C.PLAYER}:{C.UNO}_{uno}', 'hget', C.GROUP)
-#         player_to_group[uno] = player_group
-#         group_unos[player_group].add(uno)
-
-#     group_unos[C.ALL] = set(player_to_group)
-#     game_modes = (C.ALL, C.MW_MP, C.MW_WZ)
-#     source = C.MAIN
-#     targets: dict[
-#         str, dict[Literal['all', 'mw_mp', 'mw_wz'], defaultdict[str, int]]
-#     ] = {
-#         uno: {game_mode: defaultdict(int) for game_mode in game_modes}
-#         for uno in (set(group_unos[C.ALL]) | set(group_unos) | {C.TRACKER})
-#     }
-
-#     for game_mode, (game, mode) in SGM.modes(C.MW).items():
-#         tables = STT.get_tables(game, mode, source)
-#         all_matches = fill_all_matches(db, tables, group_unos[C.ALL])
-
-#         for match_unos in all_matches:
-#             # summary all matches
-#             for match_uno in match_unos:
-#                 targets[C.TRACKER][game_mode][match_uno] += 1
-#                 targets[C.TRACKER][C.ALL][match_uno] += 1
-#             # summary only matches that have registered player
-#             for player_uno in match_unos & group_unos[C.ALL]:
-#                 player_group = player_to_group[player_uno]
-#                 for match_uno in match_unos - {player_uno}:
-#                     targets[player_uno][game_mode][match_uno] += 1
-#                     targets[player_uno][C.ALL][match_uno] += 1
-
-#                     for group_uno in (player_group, C.ALL):
-#                         if match_uno not in group_unos[group_uno]:
-#                             targets[group_uno][game_mode][match_uno] += 1
-#                             targets[group_uno][C.ALL][match_uno] += 1
-
-#     uno_to_username: dict[str, str] = {}
-
-#     for game_mode in game_modes:
-#         game, mode = SGM.desctruct_game_mode(game_mode)
-#         tables = STT.get_tables(game, mode, source)
-
-#         for uno, most_play_with in targets.items():
-#             most_play_with[game_mode] = sorted(  # list[MostPlayWithData]
-#                 (
-#                     {C.UNO: uno, C.COUNT: count, C.USERNAME: ''}
-#                     for uno, count in most_play_with[game_mode].items()
-#                     if count > 1
-#                 ),
-#                 key=lambda x: x[C.COUNT],
-#                 reverse=True,
-#             )[:50]
-
-#             # identification every uno to username
-#             for most_play in most_play_with[game_mode]:
-#                 if most_play[C.UNO] not in uno_to_username:
-#                     for t in tables:
-#                         player = (
-#                             db.query(t.table.username)
-#                             .filter(t.table.uno == most_play[C.UNO])
-#                             .first()
-#                         )
-#                         if player and player.username:
-#                             uno_to_username[most_play[C.UNO]] = player.username
-#                             break
-#                 most_play[C.USERNAME] = uno_to_username[most_play[C.UNO]]
-
-#     for uno, most_play_with in targets.items():
-#         target_data_stats_save(db, uno, C.MOST_PLAY_WITH, most_play_with)
-
-
 @log_time_wrap
 def most_play_with_update(db: Session):
     # TODO add most_play_with stats for groups
@@ -596,9 +521,7 @@ def tracker_stats_update(db: Session) -> TrackerStats:
         C.MOST_PLAY_WITH: most_play_with_update(db),
     }
 
-    config_get(db, C.STATS, C.TRACKER).update(
-        {SBT.configs.data: data, SBT.configs.time: now()}
-    )
+    config_get(db, C.STATS, C.TRACKER).update({SBT.configs.data: data})
     db.commit()
 
     return {C.DATA: data, C.TIME: now(C.ISO)}

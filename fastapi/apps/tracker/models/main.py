@@ -1,4 +1,4 @@
-from sqlalchemy import Column, TIMESTAMP, Integer, String, Text, JSON
+from sqlalchemy import Column, TIMESTAMP, String, Text, JSON
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 
@@ -21,8 +21,6 @@ from apps.tracker.models.abstracts import (
 
 
 class cod_players(Base):
-    id = Column(Integer, primary_key=True, index=True)
-
     uno = Column(String(settings.NAME_LIMIT_2), index=True, nullable=False, unique=True)
     acti = Column(String(settings.NAME_LIMIT_2))
     battle = Column(String(settings.NAME_LIMIT_2))
@@ -69,7 +67,6 @@ class cod_label_games_stats(cod_label): ...
 
 
 class cod_logs_search(Base):
-    id = Column(Integer, primary_key=True, index=True)
     target = Column(String(settings.NAME_LIMIT), nullable=False, index=True)
     uno = Column(String(settings.NAME_LIMIT), index=True)
     data = Column(JSONB(astext_type=Text()), nullable=False, server_default=r'[]')
@@ -77,7 +74,6 @@ class cod_logs_search(Base):
 
 
 class cod_logs_task_queues(Base):
-    id = Column(Integer, primary_key=True, index=True)
     name = Column(String(settings.NAME_LIMIT_2), nullable=False)
     status = Column(String(settings.NAME_LIMIT), nullable=False)
     data = Column(JSONB(astext_type=Text()), nullable=False, server_default=r'{}')

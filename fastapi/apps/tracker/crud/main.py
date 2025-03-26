@@ -133,6 +133,7 @@ from apps.tracker.schemas.main import (
 
 from apps.tracker.crud.utils import (
     correct_ratio,
+    games_summary,
     player_get,
     game_stats_format,
     target_unos_get,
@@ -158,7 +159,7 @@ from apps.tracker.crud.utils import (
 
 
 def test(db: Session, target: str):  # pylint: disable=unused-argument
-    return loadout_update(db)
+    return
 
 
 def panel_get(db: Session) -> Panel:
@@ -322,7 +323,7 @@ def player_pre_check(db: Session, body: PlayerSearch) -> SearchResp:
     if platform in SC.PLATFORMS:
         if platform == C.UNO:
             player = player_get(db, target, C.BASIC, player_pre_check.__name__)
-        elif _uno := redis_manage(f'{C.PLAYER}:{platform}_{target}', 'get'):
+        elif _uno := redis_manage(f'{C.PLAYER}:{platform}_{target}'):
             player = player_get(db, _uno, C.BASIC, player_pre_check.__name__)
         else:
             player = None
@@ -503,13 +504,10 @@ async def player_search(db: Session, ws: WebSocket):
         search_data.append(data)
 
         if not data[C.USERNAME]:
-            continue
+            continue  # matches for player not found
 
-        uno_registered = (
-            db.query(STT.players).filter(STT.players.uno == player[C.UNO]).count()
-        )
-        if uno_registered:
-            continue
+        if db.query(STT.players).filter(STT.players.uno == player[C.UNO]).count():
+            continue  # player with this uno already registered
 
         save_player = STT.players()
         save_player.__dict__.update(player)
@@ -1010,7 +1008,7 @@ def player_put(db: Session, body: EditTarget) -> EditPlayerResponse | Error:
     message = ''
 
     if name == C.ID:
-        if uno := redis_manage(f'{C.PLAYER}:{name}_{value}', 'get'):
+        if uno := redis_manage(f'{C.PLAYER}:{name}_{value}'):
             return json_error(status.HTTP_302_FOUND, f'used by [{uno}]')
     elif name == C.GROUP:
         if value is None:
@@ -1700,7 +1698,7 @@ def matches_router(db: Session, body: Router) -> MatchesResponse:
         target_type = target_type_define(target)
 
         if target == C.TRACKER:
-            pass
+            query_target = ' '
 
         elif target_type == C.GROUP:
             group_games, players = redis_manage(
@@ -1754,7 +1752,7 @@ def matches_router(db: Session, body: Router) -> MatchesResponse:
             continue
         if is_mw is False and data_type == C.USERNAME:
             # search player uno for searched username
-            search_uno = redis_manage(f'{C.PLAYER}:{C.USERNAME}_{target}', 'get')
+            search_uno = redis_manage(f'{C.PLAYER}:{C.USERNAME}_{target}')
             if search_uno is None:
                 continue
             query_table = f"WHERE {C.UNO} = '{search_uno}'"
@@ -2322,10 +2320,11 @@ def player_matches_stats_update(
         return json_error(status.HTTP_404_NOT_FOUND, f'[{uno}] {C.NOT_FOUND}')
 
     if game_mode == C.ALL:
-        for game_mode in SGM.modes():
-            games[game_mode][C.MATCHES][C.STATS] = matches_stats_game_mode_count(
-                db, uno, game_mode
+        for _game_mode in SGM.modes():
+            games[_game_mode][C.MATCHES][C.STATS] = matches_stats_game_mode_count(
+                db, uno, _game_mode
             )
+        games = games_summary(games)
     else:
         games[game_mode][C.MATCHES][C.STATS] = matches_stats_game_mode_count(
             db, uno, game_mode

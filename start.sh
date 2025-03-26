@@ -6,15 +6,17 @@ ACTION_3="$3"
 CURRENT_DIRECTORY=$PWD
 
 APP_NAME=NextTracker
+
 NEXTJS_APP_NAME="$APP_NAME"_nextjs
-FASTAPI_APP_NAME="$APP_NAME"_fastapi
 NEXTJS_CONFIG=/etc/systemd/system/$NEXTJS_APP_NAME.service
+NEXTJS_API_PATH=/api/nextjs
+NEXTJS_PORT="3000"
+
+FASTAPI_APP_NAME="$APP_NAME"_fastapi
 FASTAPI_CONFIG=/etc/systemd/system/$FASTAPI_APP_NAME.service
+FASTAPI_API_PATH=/api/fastapi
 FASTAPI_SOCK_FILE=runing.sock
 FASTAPI_MONITOR_NAME=monitor.py
-
-FASTAPI_API_PATH=/api/fastapi
-NEXTJS_API_PATH=/api/nextjs
 
 if grep -q "ID=manjaro" /etc/os-release; then
     IS_MANJARO=true
@@ -411,13 +413,13 @@ if [ -f .env ]; then
         fi
 
         manage_process $NEXTJS_APP_NAME "stop"
-        manage_process $FASTAPI_APP_NAME "stop"
         manage_process $NEXTJS_APP_NAME "disable"
-        manage_process $FASTAPI_APP_NAME "disable"
-
         sudo rm $NEXTJS_CONFIG
-        sudo rm $FASTAPI_CONFIG
         color_echo "deleted $NEXTJS_CONFIG" "33"
+
+        manage_process $FASTAPI_APP_NAME "stop"
+        manage_process $FASTAPI_APP_NAME "disable"
+        sudo rm $FASTAPI_CONFIG
         color_echo "deleted $FASTAPI_CONFIG" "33"
 
         if [[ "$SERVICE_MANAGER" = "systemctl" ]]; then
@@ -611,15 +613,13 @@ ADMIN_PASSWORD=$ADMIN_PASSWORD
 
 GUNICORN_WORKERS=$PHYSICAL_CORES
 
-NEXTJS_PORT=3000
+NEXTJS_API_PATH=$NEXTJS_API_PATH
+NEXTJS_PORT=$NEXTJS_PORT
 
 FASTAPI_API_PATH=$FASTAPI_API_PATH
-NEXTJS_API_PATH=$NEXTJS_API_PATH
-
 FASTAPI_HOST=0.0.0.0
 FASTAPI_PORT=8000
 FASTAPI_SOCK_FILE=$FASTAPI_SOCK_FILE
-
 FASTAPI_MONITOR_NAME=$FASTAPI_MONITOR_NAME
 FASTAPI_MONITOR_HOST=127.0.0.1
 FASTAPI_MONITOR_PORT=8001
@@ -674,9 +674,8 @@ EOL"
     DATABASE_EXIST=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DATABASE_NAME'")
     if [[ "$DATABASE_EXIST" == "1" ]]; then
         color_echo "
-        [$DATABASE_NAME] database already exist
-        $DATABASE_EXIST
-        make sure 'DATABASE_USER' and 'DATABASE_PASSWORD' set properly in '.env' file" "31"
+        database already exist
+        set valid 'DATABASE_USER' and 'DATABASE_PASSWORD' for [$DATABASE_NAME] in '.env' file" "31"
     else
         color_echo "Create database [$DATABASE_NAME] and role [$DATABASE_USER]" "33"
         sudo -u postgres psql -c "CREATE DATABASE $DATABASE_NAME;"
@@ -712,7 +711,7 @@ EOL"
             sudo unzip "$tables" -d "$TRACKER_FOLDER"
 
             tables_optional=$CURRENT_DIRECTORY/static/files/tables_optional.zip
-            if test -f "$tables_optional" && confirm "
+            if unzip -l "$tables_optional" >/dev/null 2>&1 && confirm "
             Import these optional tables ? 
             $(sudo du -h "$tables_optional")
             $(sudo unzip -l "$tables_optional")
@@ -735,7 +734,8 @@ EOL"
             sql_command="\COPY $table_name FROM '$TRACKER_FOLDER/$table_file' WITH CSV HEADER;"
             echo $sql_command
             sudo -u postgres psql -d "$DATABASE_NAME" -c "$sql_command"
-            sudo -u postgres psql -d "$DATABASE_NAME" -c "SELECT setval('${table_name}_id_seq', (SELECT MAX(id) FROM \"$table_name\"));" > /dev/null
+            sudo -u postgres psql -d "$DATABASE_NAME" -c "
+            SELECT setval('${table_name}_id_seq', (SELECT MAX(id) FROM \"$table_name\"));" > /dev/null
         done
 
         if confirm "Remove folder with tables $TRACKER_FOLDER ?"; then
@@ -856,7 +856,7 @@ http {
         client_max_body_size 20M;
 
         location / {
-            proxy_pass http://localhost:3000;
+            proxy_pass http://localhost:'"$NEXTJS_PORT"';
             proxy_set_header Host \$host;
             proxy_set_header X-Real-IP \$remote_addr;
 

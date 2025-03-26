@@ -26,7 +26,7 @@ from core.database import get_db
 
 from apps.base.crud.store_tables import SBT
 from apps.base.crud.utils_data_init import LOGS_TABLES
-from apps.base.models.main import users
+from apps.base.models.main import Users
 from apps.base.schemas.basic import AppType
 from apps.base.schemas.main import (
     C,
@@ -450,7 +450,6 @@ def config_get(db: Session, name: ConfigName, source: ConfigSource):
         config = table(id=get_last_id(db, table) + 1, name=name, source=source)
         db.add(config)
         db.commit()
-        db.refresh(config)
 
     return query
 
@@ -479,9 +478,7 @@ def update_base_stats(db: Session):
         }
         for name, base_table in SBT.__dict__.items()
     }
-    config_get(db, C.STATS, C.BASE).update(
-        {SBT.configs.data: data, SBT.configs.time: now()}
-    )
+    config_get(db, C.STATS, C.BASE).update({SBT.configs.data: data})
     db.commit()
 
     return {C.DATA: data, C.TIME: now(C.ISO)}
@@ -754,7 +751,7 @@ def in_logs_cod_logs_cache(target: str, game_mode: GameMode, message: str):
 
 
 def user_cache_set(
-    db: Session, user: users, roles: list[UsersRole] | None = None
+    db: Session, user: Users, roles: list[UsersRole] | None = None
 ) -> User:
     roles = roles or db.query(SBT.users_role).all()
     role_pages: dict[str, list[UsersPage]] = {role.name: role.pages for role in roles}
@@ -784,7 +781,7 @@ def user_cache_set(
 
 def users_cache_set(db: Session):
     roles: list[UsersRole] = db.query(SBT.users_role).all()
-    _users: list[users] = db.query(SBT.users).all()
+    _users: list[Users] = db.query(SBT.users).all()
 
     for user in _users:
         user_cache_set(db, user, roles)

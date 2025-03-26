@@ -506,7 +506,6 @@ def configs_put(db: Session, body: Config) -> Config | Error:
             table.name: body.name,
             table.source: body.source,
             table.data: body.data,
-            table.time: now(),
         }
     )
     db.commit()

@@ -609,16 +609,14 @@ export const tracker_stats_update = async (): Promise<TrackerStats> => {
         most_play_with: await most_play_with_update(),
     }
 
-    const time = new Date()
-
     await db.update(schema.configs)
-        .set({ data, time })
+        .set({ data })
         .where(and(
             eq(schema.configs.name, C.STATS),
             eq(schema.configs.source, C.TRACKER),
         ))
 
-    return { data, time: time.toISOString() }
+    return { data, time: new Date().toISOString() }
 }
 
 export const get_played_stat = async (
@@ -1572,7 +1570,7 @@ export const most_common_uno_game_mode_get = async (game_mode: GameModeMw | C.AL
         .with(all_entries)
         .select({
             uno: all_entries.uno,
-            count: sql<number>`count(${all_entries.uno})::int`.as(C.COUNT)
+            count: sql<number>`count(${all_entries.uno})::int`.as(C.COUNT),
         })
         .from(all_entries)
         .groupBy(all_entries.uno)
@@ -1638,6 +1636,20 @@ export const most_play_with_update = async () => {
         }
     }
 
+    const players_with_group = await db.select({
+        uno: schema.cod_players.uno,
+        group: schema.cod_players.group,
+    })
+        .from(schema.cod_players)
+        .where(isNotNull(schema.cod_players.group))
+
+    for (const player of players_with_group) {
+        if (player.uno in players) continue
+
+    }
+
+
+    
     for (const game_mode of GameModeMwSchema.options) {
         const game_tables = await get_game_tables(game_mode, C.ALL)
         const table_1 = game_tables[0].table

@@ -55,7 +55,7 @@ export const configs = pgTable(C.CONFIGS, {
     name: varchar(C.NAME, { length: NAME_LIMIT }).$type<Config['name']>().notNull(),
     source: varchar(C.SOURCE, { length: NAME_LIMIT }).$type<Config['source']>().notNull(),
     data: jsonb(C.DATA).$type<Config['data']>().default({}).notNull(),
-    time: timestamp(C.TIME).defaultNow().notNull(),
+    time: timestamp(C.TIME).defaultNow().$onUpdate(() => new Date()).notNull(),
 }, table => index_builder([table.id]))
 
 export const logs = pgTable(

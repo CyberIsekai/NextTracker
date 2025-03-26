@@ -1,5 +1,5 @@
 from apps.base.models.main import (
-    users,
+    Users,
     users_role,
     notes,
     configs,
@@ -20,7 +20,7 @@ class StoreBaseTables():
     '''Global store tables for tracker'''
 
     def __init__(self):
-        self.users = users
+        self.users = Users
         self.users_role = users_role
         self.notes = notes
         self.configs = configs

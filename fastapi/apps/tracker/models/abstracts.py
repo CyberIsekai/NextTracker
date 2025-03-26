@@ -16,7 +16,6 @@ from apps.base.models.main import Base
 class cod_label(Base):
     __abstract__ = True
 
-    id = Column(Integer, primary_key=True)
     name = Column(String(settings.NAME_LIMIT_2), nullable=False, unique=True)
     label = Column(String(settings.NAME_LIMIT_2))
     game_mode = Column(String(settings.NAME_LIMIT))
@@ -26,7 +25,6 @@ class cod_label(Base):
 class basic(Base):
     __abstract__ = True
 
-    id = Column(Integer, primary_key=True)
     time = Column(TIMESTAMP, nullable=False, index=True)
     matchID = Column(String(settings.NAME_LIMIT_2), nullable=False, index=True)
     uno = Column(String(settings.NAME_LIMIT_2), nullable=False, index=True)

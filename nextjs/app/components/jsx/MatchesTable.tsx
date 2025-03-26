@@ -488,7 +488,7 @@ export default function MatchesTable({ slug_router }: { slug_router?: Router }) 
                                 })
                                 .map(match =>
                                     <MatchRow
-                                        key={`${C.MATCH}_${match.time}`}
+                                        key={`${C.MATCH}_${match.id}_${match.time}`}
                                         match={match}
                                         is_same_map={data.is_same_map}
                                     />)}

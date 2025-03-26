@@ -10,7 +10,7 @@ import {
     UsersResponse,
 } from '@/app/components/zod/User'
 
-export default function Users() {
+export default function UsersPage() {
     const { t, modal_open, modal_close } = useAppContext()
 
     const [data, setData] = useState<UsersResponse>()

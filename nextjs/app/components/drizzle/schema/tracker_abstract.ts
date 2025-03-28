@@ -13,6 +13,7 @@ import {
     NAME_LIMIT_2,
 } from '@/app/components/Consts'
 import { PlayerUno } from '@/app/components/zod/Uno'
+import { MatchID, MatchResult } from '@/app/components/zod/Match'
 
 export const all_games_basic_indexes = [C.ID, C.TIME, C.MATCHID, C.UNO]
 export const matches_basic_indexes = [
@@ -36,12 +37,12 @@ export const cod_label = () => ({
 export const all_games_basic = () => ({
     id: serial(C.ID).primaryKey().unique().notNull(),
     time: timestamp(C.TIME).notNull(),
-    matchID: varchar(C.MATCHID, { length: NAME_LIMIT_2 }).notNull(),
+    matchID: varchar(C.MATCHID, { length: NAME_LIMIT_2 }).$type<MatchID>().notNull(),
     uno: varchar(C.UNO, { length: NAME_LIMIT_2 }).$type<PlayerUno>().notNull(),
     map: varchar('map', { length: NAME_LIMIT_2 }),
     mode: varchar(C.MODE, { length: NAME_LIMIT_2 }),
     team: varchar(C.TEAM, { length: 60 }),
-    result: smallint(C.RESULT).default(0).notNull(),
+    result: smallint(C.RESULT).$type<MatchResult>().default(0).notNull(),
 })
 
 export const matches_basic = () => ({

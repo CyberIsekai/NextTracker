@@ -529,7 +529,7 @@ if ! which redis-server >/dev/null 2>&1 && confirm "Install redis ?"; then
         [ -n "$REPOSITORY" ] && sudo add-apt-repository -y "$REPOSITORY"
         sudo apt install redis -y
     fi
-    sudo systemctl daemon-reload
+    manage_process "redis" "enable"
 fi
 ! pgrep "redis" >/dev/null 2>&1 && manage_process "redis" "start"
 

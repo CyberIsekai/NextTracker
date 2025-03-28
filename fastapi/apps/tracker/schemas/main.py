@@ -391,6 +391,7 @@ class MostCommonUnoData(BaseModel):
     count: int
     username: list[str]
     clantag: list[str]
+    group: str | None
 
 
 class LoadoutStatsData(BaseModel):

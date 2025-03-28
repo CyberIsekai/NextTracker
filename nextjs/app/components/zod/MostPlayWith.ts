@@ -22,5 +22,6 @@ export const MostCommonUnoDataSchema = z.object({
     count: z.number().nonnegative(),
     username: z.array(z.string()),
     clantag: z.array(z.string()),
+    group: z.string().nullable().optional(),
 })
 export type MostCommonUnoData = z.infer<typeof MostCommonUnoDataSchema>

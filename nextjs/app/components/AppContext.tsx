@@ -73,11 +73,12 @@ export const AppWrapper = ({ children }: { children: React.ReactNode }) => {
     }, [])
 
     const translate_text = (text: unknown) => {
-        if (!translate || !text) return ''
+        if (!text) return ''
         if (typeof text !== 'string') {
             try { return JSON.stringify(text) }
             catch { return '' }
         }
+        if (!translate) return text
         if (!text.trim()) return ''
 
         const translate_word = (word: string) => {

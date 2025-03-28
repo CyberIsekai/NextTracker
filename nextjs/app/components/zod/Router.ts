@@ -90,7 +90,7 @@ export type ContextMatchesStatsNavigationDataType = z.infer<typeof ContextMatche
 export const ContextMatchesStatsNavigationSchema = z.object({
     data_type: ContextMatchesStatsNavigationDataTypeSchema,
     router: RouterSchema,
-    target_data: PlayerDataSchema.or(GroupDataSchema).nullable(),
+    target_data: GroupDataSchema.or(PlayerDataSchema).nullable(),
 })
 export type ContextMatchesStatsNavigation = z.infer<typeof ContextMatchesStatsNavigationSchema>
 

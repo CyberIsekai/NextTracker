@@ -6,7 +6,7 @@ import time
 from typing import Literal
 from collections import Counter
 
-from sqlalchemy import select, union_all, func, desc, text
+from sqlalchemy import select, union_all, func
 from sqlalchemy.orm import Session
 from fastapi import WebSocket
 
@@ -100,34 +100,67 @@ def search_uno_tags(db: Session, uno: str, column: Literal['username', 'clantag'
 
 
 def most_common_uno_game_mode_get(db: Session, game_mode: GameMode):
+    COUNT_REQUIRED = 100
     game, mode = SGM.desctruct_game_mode(game_mode)
+
     game_tables = STT.get_tables(game, mode, C.ALL)
     selects = [select(t.table.uno) for t in game_tables]
     all_entries = union_all(*selects).cte(name='all_entries')
     query = (
         select(all_entries.c.uno, func.count(all_entries.c.uno).label(C.COUNT))
         .group_by(all_entries.c.uno)
-        .having(func.count(all_entries.c.uno) > 100)
-        .order_by(desc(text(C.COUNT)))
+        .having(func.count(all_entries.c.uno) > COUNT_REQUIRED)
+        # .order_by(desc(text(C.COUNT)))
         .limit(1000)
     )
     query_result = db.execute(query)
-    most_common_uno_game_mode: list[MostCommonUnoData] = [
-        {
+
+    most_common_uno_game_mode: dict[str, MostCommonUnoData] = {
+        row.uno: {
             C.UNO: row.uno,
             C.COUNT: row.count,
             C.USERNAME: search_uno_tags(db, row.uno, C.USERNAME),
             C.CLANTAG: search_uno_tags(db, row.uno, C.CLANTAG),
         }
         for row in query_result
-    ]
+    }
 
-    return most_common_uno_game_mode
+    # manually add registered players
+    # if they had less count required
+    players_with_group = (
+        db.query(
+            STT.players.uno,
+            STT.players.group,
+            STT.players.username,
+            STT.players.clantag,
+        )
+        .filter(STT.players.group != None)
+        .all()
+    )
+
+    for player in players_with_group:
+        if player.uno in most_common_uno_game_mode:
+            continue
+
+        most_common_uno_game_mode[player.uno] = {
+            C.UNO: player.uno,
+            C.GROUP: player.group,
+            C.COUNT: db.query(all_entries)
+            .filter(all_entries.c.uno == player.uno)
+            .count(),
+            C.USERNAME: player.username,
+            C.CLANTAG: player.clantag,
+        }
+
+    sorted_list = sorted(
+        most_common_uno_game_mode.values(), key=lambda x: x[C.COUNT], reverse=True
+    )
+
+    return sorted_list
 
 
 @log_time_wrap
 def most_play_with_update(db: Session):
-    # TODO add most_play_with stats for groups
     most_common_uno_all = most_common_uno_game_mode_get(db, C.ALL)
     TOP_LIMIT = 50
     time_now = now(C.ISO)
@@ -155,6 +188,8 @@ def most_play_with_update(db: Session):
     }
 
     uno_tags: dict[str, dict[Literal['username', 'clantag'], str]] = {}
+    groups: dict[str, dict[GameModeMw, Counter[str, int]]] = {}
+    groups_match_counted: dict[str, set[str]] = {}
     players: dict[
         str,
         dict[Literal['most_play_with'], MostPlayWith]
@@ -181,17 +216,42 @@ def most_play_with_update(db: Session):
             ),
         }
 
+        if (group := most_common_uno.get(C.GROUP)) and group not in groups:
+            groups[group] = {C.MW_MP: Counter(), C.MW_WZ: Counter()}
+            groups_match_counted[group] = set()
+
     for game_mode, (game, mode) in SGM.modes(C.MW, C.ALL).items():
         game_tables = STT.get_tables(game, mode, C.ALL)
 
         selects = [select(t.table.uno, t.table.matchID) for t in game_tables]
         all_entries = union_all(*selects).cte(name='all_entries')
 
+        # store for all matches game_mode
         all_matches: dict[str, list[str]] = {}
+
+        def find_uno_tag(uno: str):
+            if uno in uno_tags:
+                return uno_tags[uno]
+
+            for t in game_tables:
+                find = (
+                    db.query(t.table.username, t.table.clantag)
+                    .filter(t.table.uno == uno)
+                    .first()
+                )
+                if find and find.username:
+                    uno_tags[uno] = {
+                        C.USERNAME: find.username,
+                        C.CLANTAG: find.clantag or '',
+                    }
+                    break
+
+            return uno_tags[uno]
 
         for index, most_common_uno in enumerate(most_common_uno_all):
 
             uno: str = most_common_uno[C.UNO]
+            group: str | None = most_common_uno.get(C.GROUP)
 
             player_matches_count = Counter()
             result = db.execute(
@@ -205,7 +265,7 @@ def most_play_with_update(db: Session):
                     C.UNO: uno,
                     C.COUNT: len(player_matches_list),
                 }
-                | uno_tags[uno]
+                | find_uno_tag(uno)
             )
 
             for matchID in player_matches_list:
@@ -226,10 +286,20 @@ def most_play_with_update(db: Session):
                     else:
                         all_matches[matchID] = match_unos
 
+                is_need_match_group_count = (
+                    group != None and matchID not in groups_match_counted[group]
+                )
+
                 for match_uno in all_matches[matchID]:
                     # count all players in a match that play with this uno
                     if match_uno != uno:
                         player_matches_count[match_uno] += 1
+
+                        if is_need_match_group_count:
+                            groups[group][game_mode][match_uno] += 1
+
+                if is_need_match_group_count:
+                    groups_match_counted[group].add(matchID)
 
             player_matches_count_top = sorted(
                 [i for i in player_matches_count.items() if i[1] > 2],
@@ -239,26 +309,12 @@ def most_play_with_update(db: Session):
 
             for match_uno, count in player_matches_count_top:
 
-                if match_uno not in uno_tags:
-                    for t in game_tables:
-                        find = (
-                            db.query(t.table.username, t.table.clantag)
-                            .filter(t.table.uno == match_uno)
-                            .first()
-                        )
-                        if find and find.username:
-                            uno_tags[match_uno] = {
-                                C.USERNAME: find.username,
-                                C.CLANTAG: find.clantag or '',
-                            }
-                            break
-
                 players[uno][C.MOST_PLAY_WITH][game_mode].append(
                     {
                         C.UNO: match_uno,
                         C.COUNT: count,
                     }
-                    | uno_tags[match_uno]
+                    | find_uno_tag(match_uno)
                 )
 
             if (index % 10) == 0:
@@ -336,6 +392,47 @@ def most_play_with_update(db: Session):
             )
             db.add(save_player)
         db.commit()
+
+    # =================== formating most_play_with for groups ===================
+    def format_most_play_with_data(data: Counter[str, int]):
+        most_play_with_data: list[MostPlayWithData] = []
+        group_matches_count_top = sorted(
+            [i for i in data.items() if i[1] > 2],
+            key=lambda x: x[1],
+            reverse=True,
+        )[:TOP_LIMIT]
+
+        for uno, count in group_matches_count_top:
+            clantag = search_uno_tags(db, uno, C.CLANTAG)
+            most_play_with_data.append(
+                {
+                    C.UNO: uno,
+                    C.COUNT: count,
+                    C.USERNAME: search_uno_tags(db, uno, C.USERNAME)[0],
+                    C.CLANTAG: clantag[0] if clantag else '',
+                }
+            )
+
+        return most_play_with_data
+
+    for group_uno, data in groups.items():
+        summary_all = Counter()
+        for game_mode in SGM.modes(C.MW, C.ALL):
+            for player_uno, count in data[game_mode].items():
+                summary_all[player_uno] += count
+
+        most_play_with: MostPlayWith = {
+            C.ALL: format_most_play_with_data(summary_all),
+            C.MW_MP: format_most_play_with_data(data[C.MW_MP]),
+            C.MW_WZ: format_most_play_with_data(data[C.MW_WZ]),
+            C.TIME: time_now,
+        }
+        redis_manage(
+            f'{C.GROUP}:{C.UNO}_{group_uno}',
+            'hset',
+            {C.MOST_PLAY_WITH: most_play_with},
+        )
+    # =================== formating most_play_with for groups ===================
 
     most_play_with[C.MW_MP] = sorted(
         most_play_with[C.MW_MP],

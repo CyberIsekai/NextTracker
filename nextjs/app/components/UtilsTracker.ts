@@ -1525,7 +1525,6 @@ export const search_uno_tags = async (
         .selectDistinctOn([table[column]], {
             time: table.time,
             [column]: table[column],
-            uno: table.uno,
         })
         .from(table)
         .where(and(
@@ -1539,27 +1538,33 @@ export const search_uno_tags = async (
         create_subquery(table_1).union(create_subquery(table_2))
     ).as('all_entries')
 
-    const [result] = await db
-        .select({
-            [column]: sql<string[] | null>`array_agg(
-                ${sql.identifier(column)}::text 
-                ORDER BY ${sql`all_entries.time`} DESC
-            )`
-        })
+    const raw_results = await db
+        .select({ value: sql<string>`${sql.identifier(column)}::text` })
         .from(all_entries)
+        .orderBy(desc(sql`time`))
 
-    return result[column] || []
+    const seen = new Set<string>()
+    const result: string[] = []
+
+    for (const { value } of raw_results) {
+        if (!seen.has(value)) {
+            seen.add(value)
+            result.push(value)
+        }
+    }
+
+    return result
 }
 
 export const most_common_uno_game_mode_get = async (game_mode: GameModeMw | C.ALL) => {
+    const COUNT_REQUIRED = 100
+
     const game_tables = await get_game_tables(game_mode, C.ALL)
     const table_1 = game_tables[0].table
     const table_2 = game_tables[1].table
-
     const create_subquery = (table: typeof table_1) => db
         .select({ uno: table.uno })
         .from(table)
-
     const union_query = game_tables.slice(2).reduce((qb, { table }) =>
         qb.unionAll(create_subquery(table)),
         create_subquery(table_1).unionAll(create_subquery(table_2)),
@@ -1574,21 +1579,50 @@ export const most_common_uno_game_mode_get = async (game_mode: GameModeMw | C.AL
         })
         .from(all_entries)
         .groupBy(all_entries.uno)
-        .having(({ count }) => gt(count, 100))
-        .orderBy(sql`count DESC`)
+        .having(({ count }) => gt(count, COUNT_REQUIRED))
         .limit(1000)
 
-    const most_common_uno_game_mode: MostCommonUnoData[] = []
+    const most_common_uno_game_mode: Record<PlayerUno, MostCommonUnoData> = {}
+
     for (const { uno, count } of most_common_uno_list) {
-        most_common_uno_game_mode.push({
+        most_common_uno_game_mode[uno] = {
             uno,
             count,
             username: await search_uno_tags(uno, C.USERNAME),
             clantag: await search_uno_tags(uno, C.CLANTAG),
-        })
+        }
     }
 
-    return most_common_uno_game_mode
+    // manually add registered players
+    // if they had less count required
+    const players_with_group = await db.select({
+        uno: schema.cod_players.uno,
+        group: schema.cod_players.group,
+        username: schema.cod_players.username,
+        clantag: schema.cod_players.clantag,
+    })
+        .from(schema.cod_players)
+        .where(isNotNull(schema.cod_players.group))
+
+    for (const player of players_with_group) {
+
+        if (player.uno in most_common_uno_game_mode) continue
+
+        most_common_uno_game_mode[player.uno] = {
+            ...player,
+            count: (
+                await db
+                    .with(all_entries)
+                    .select({ count: sql<number>`count(*)::int` })
+                    .from(all_entries)
+                    .where(eq(all_entries.uno, player.uno))
+            )[0].count,
+        }
+    }
+
+    const sorted_list = Object.values(most_common_uno_game_mode).sort((a, b) => b.count - a.count)
+
+    return sorted_list
 }
 
 export const most_play_with_update = async () => {
@@ -1610,14 +1644,18 @@ export const most_play_with_update = async () => {
         time,
     }
     const uno_tags: Record<PlayerUno, { username: string, clantag: string }> = {}
+    const groups: Record<GroupUno, Record<GameModeMw, Record<PlayerUno, number>>> = {}
+    const groups_match_counted: Record<GroupUno, Set<MatchID>> = {}
     const players: Record<
         PlayerUno,
         {
             most_play_with: MostPlayWith
             fullmatches: Record<GameModeMw, number>
+            group?: string
         }
     > = {}
-    for (const { uno, username, clantag } of most_common_uno_all) {
+
+    for (const { uno, username, clantag, group } of most_common_uno_all) {
         players[uno] = {
             most_play_with: {
                 all: [],
@@ -1634,44 +1672,62 @@ export const most_play_with_update = async () => {
             username: username[0],
             clantag: clantag[0] || '',
         }
+
+        if (group && !groups[group]) {
+            groups[group] = { mw_mp: {}, mw_wz: {} }
+            groups_match_counted[group] = new Set<string>()
+        }
     }
 
-    const players_with_group = await db.select({
-        uno: schema.cod_players.uno,
-        group: schema.cod_players.group,
-    })
-        .from(schema.cod_players)
-        .where(isNotNull(schema.cod_players.group))
-
-    for (const player of players_with_group) {
-        if (player.uno in players) continue
-
-    }
-
-
-    
     for (const game_mode of GameModeMwSchema.options) {
+        // prepare union query for tables game_mode
         const game_tables = await get_game_tables(game_mode, C.ALL)
         const table_1 = game_tables[0].table
         const table_2 = game_tables[1].table
-
         const create_subquery = (table: typeof table_1) => db
             .select({
                 uno: table.uno,
                 matchID: table.matchID,
             })
             .from(table)
-
         const union_query = game_tables.slice(2).reduce((qb, { table }) =>
             qb.union(create_subquery(table)),
             create_subquery(table_1).union(create_subquery(table_2))
         )
         const all_entries = db.$with('all_entries').as(union_query)
 
+        // store for all matches game_mode
         const all_matches: Record<MatchID, PlayerUno[]> = {}
         let uno_progress = 0
 
-        for (const { uno } of most_common_uno_all) {
+        const find_uno_tag = async (uno: PlayerUno) => {
+            if (uno_tags[uno]) return uno_tags[uno]
+
+            for (const { table } of game_tables) {
+                const [find] = await db
+                    .select({
+                        username: table.username,
+                        clantag: table.clantag,
+                    })
+                    .from(table)
+                    .where(and(
+                        eq(table.uno, uno),
+                        isNotNull(table.username),
+                    ))
+                    .limit(1)
+                if (find?.username) {
+                    uno_tags[uno] = {
+                        username: find.username,
+                        clantag: find.clantag || '',
+                    }
+                    break
+                }
+            }
+
+            return uno_tags[uno]
+        }
+
+        for (const { uno, group } of most_common_uno_all) {
             const player_matches_count: Record<PlayerUno, number> = {}
             const player_matches_list = (
                 await db
@@ -1685,7 +1741,7 @@ export const most_play_with_update = async () => {
             most_play_with[game_mode].push({
                 uno,
                 count: player_matches_list.length,
-                ...uno_tags[uno],
+                ... await find_uno_tag(uno),
             })
 
             for (const matchID of player_matches_list) {
@@ -1708,11 +1764,22 @@ export const most_play_with_update = async () => {
                     }
                 }
 
+                const is_need_match_group_count = group && !groups_match_counted[group].has(matchID)
+
                 for (const match_uno of all_matches[matchID]) {
                     // count all players in a match that play with this uno
                     if (match_uno !== uno) {
                         player_matches_count[match_uno] = (player_matches_count[match_uno] || 0) + 1
+
+                        // count this match only once for current player group
+                        if (is_need_match_group_count) {
+                            groups[group][game_mode][match_uno] = (groups[group][game_mode][match_uno] || 0) + 1
+                        }
                     }
+                }
+
+                if (is_need_match_group_count) {
+                    groups_match_counted[group].add(matchID)
                 }
             }
 
@@ -1722,39 +1789,15 @@ export const most_play_with_update = async () => {
                 .slice(0, TOP_LIMIT) // keep top limit
 
             for (const [match_uno, count] of player_matches_count_top) {
-
-                if (!uno_tags[match_uno]) {
-                    for (const { table } of game_tables) {
-                        const [find] = await db
-                            .select({
-                                username: table.username,
-                                clantag: table.clantag,
-                            })
-                            .from(table)
-                            .where(and(
-                                eq(table.uno, match_uno),
-                                isNotNull(table.username),
-                            ))
-                            .limit(1)
-                        if (find?.username) {
-                            uno_tags[match_uno] = {
-                                username: find.username,
-                                clantag: find.clantag || '',
-                            }
-                            break
-                        }
-                    }
-                }
-
                 players[uno].most_play_with[game_mode].push({
                     uno: match_uno,
                     count,
-                    ...uno_tags[match_uno],
+                    ...await find_uno_tag(match_uno),
                 })
             }
 
             uno_progress++
-            if (!(uno_progress % 100)) {
+            if (uno_progress % 10 === 0) {
                 const current_percent = Math.floor((uno_progress / most_common_uno_all.length) * 100)
                 console.log(most_play_with_update.name, game_mode, `${current_percent}%`)
             }
@@ -1794,10 +1837,12 @@ export const most_play_with_update = async () => {
             })
         )?.games
         if (games) {
+            // update exist player
             games.mw_mp.matches.stats.fullmatches = players[uno].fullmatches.mw_mp
             games.mw_wz.matches.stats.fullmatches = players[uno].fullmatches.mw_wz
             player_update(uno, { ...player_data, games }, most_play_with_update.name)
         } else {
+            // create a new player
             const games = games_create(
                 uno,
                 {
@@ -1824,12 +1869,46 @@ export const most_play_with_update = async () => {
         }
     }
 
-    most_play_with.mw_mp
-        .sort((a, b) => b.count - a.count) // desc order by count
-        .slice(0, TOP_LIMIT * 2) // keep top limit
-    most_play_with.mw_wz
-        .sort((a, b) => b.count - a.count) // desc order by count
-        .slice(0, TOP_LIMIT * 2) // keep top limit
+    // =================== formating most_play_with for groups ===================
+    const format_most_play_with_data = async (data: Record<string, number>) => {
+        const most_play_with_data: MostPlayWithData[] = []
+        const group_matches_count_top = Object.entries(data)
+            .filter(([, count]) => count > 2)
+            .sort((a, b) => b[1] - a[1]) // desc order by count
+            .slice(0, TOP_LIMIT) // keep top limit
+
+        for (const [uno, count] of group_matches_count_top) {
+            most_play_with_data.push({
+                uno,
+                count,
+                username: (await search_uno_tags(uno, C.USERNAME))[0],
+                clantag: (await search_uno_tags(uno, C.CLANTAG))[0] || '',
+            })
+        }
+
+        return most_play_with_data
+    }
+
+    for (const [group_uno, data] of Object.entries(groups)) {
+        const summary_all: Record<PlayerUno, number> = {}
+        for (const game_mode of GameModeMwSchema.options) {
+            for (const [player_uno, count] of Object.entries(data[game_mode])) {
+                summary_all[player_uno] = (summary_all[player_uno] ?? 0) + count
+            }
+        }
+        const most_play_with: MostPlayWith = {
+            all: await format_most_play_with_data(summary_all),
+            mw_mp: await format_most_play_with_data(data.mw_mp),
+            mw_wz: await format_most_play_with_data(data.mw_wz),
+            time,
+        }
+        redis_manage(`${C.GROUP}:${C.UNO}_${group_uno}`, 'hset', { most_play_with })
+    }
+    // =================== formating most_play_with for groups ===================
+
+    // desc order by count and keep top doubled limit
+    most_play_with.mw_mp.sort((a, b) => b.count - a.count).slice(0, TOP_LIMIT * 2)
+    most_play_with.mw_wz.sort((a, b) => b.count - a.count).slice(0, TOP_LIMIT * 2)
 
     return most_play_with
 }

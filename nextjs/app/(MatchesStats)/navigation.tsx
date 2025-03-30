@@ -104,7 +104,7 @@ export default function NavigationWrapper({ children }: { children: React.ReactN
                     data_type: router.data_type === C.UNO ? data_type : router.data_type,
                     target,
                     game: _game,
-                    mode: _game === C.MW && data_type === C.MATCHES ? _mode : C.ALL,
+                    mode: _mode,
                 }))}
             >
                 <IconGameMode game_mode={game_mode} size={48} />

@@ -122,7 +122,7 @@ if [[ "$ACTION" == "update" ]]; then
         color_echo "Actual version" "32"
     else
         if [ -f .env ]; then
-            (cd nextjs && npm run build && echo)
+            (cd nextjs && bun run build && echo)
         fi
         source fastapi/.venv/bin/activate
         pip install -r fastapi/requirements.txt --upgrade
@@ -228,9 +228,9 @@ if [ -f .env ]; then
 
         if [[ "$ACTION_2" == "dev" ]]; then
             is_running "$NEXTJS_APP_NAME" && manage_process "$NEXTJS_APP_NAME" "stop"
-            npm run $ACTION_2
+            bun run $ACTION_2
         elif [[ "$ACTION_2" == "rebuild_restart" ]]; then
-            npm run build
+            bun run build
             echo
             manage_process "$NEXTJS_APP_NAME" restart
         else
@@ -525,13 +525,21 @@ echo
 if ! which redis-server >/dev/null 2>&1 && confirm "Install redis ?"; then
     if [[ "$IS_ARCH" == true ]]; then
         sudo pacman -S redis -y
+        manage_process "redis" "enable"
     else
         [ -n "$REPOSITORY" ] && sudo add-apt-repository -y "$REPOSITORY"
         sudo apt install redis -y
+        manage_process "redis-server" "enable"
     fi
-    manage_process "redis" "enable"
 fi
-! pgrep "redis" >/dev/null 2>&1 && manage_process "redis" "start"
+
+if ! pgrep "redis" >/dev/null 2>&1; then
+    if [[ "$IS_ARCH" == true ]]; then
+        manage_process "redis" "start"
+    else
+        manage_process "redis-server" "start"
+    fi
+fi
 
 # Check if PostgreSQL not installed and ask for install
 if ! command -v psql >/dev/null 2>&1 && confirm "Install PostgreSQL?"; then
@@ -745,7 +753,7 @@ EOL"
             echo $sql_command
             sudo -u postgres psql -d "$DATABASE_NAME" -c "$sql_command"
             sudo -u postgres psql -d "$DATABASE_NAME" -c "
-            SELECT setval('${table_name}_id_seq', (SELECT MAX(id) FROM \"$table_name\"));" > /dev/null
+            SELECT setval('${table_name}_id_seq', (SELECT MAX(id) FROM \"$table_name\"));" >/dev/null
         done
 
         if confirm "Remove folder with tables $TRACKER_FOLDER ?"; then
@@ -918,15 +926,8 @@ else
 fi
 echo
 
-if (! command -v node &>/dev/null || ! command -v npm &>/dev/null) && confirm "Install current Node.js and npm?"; then
-    if [[ "$IS_ARCH" == true ]]; then
-        sudo pacman -S nodejs npm
-    else
-        sudo apt install -y curl
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.2/install.sh | bash
-        \. "$HOME/.nvm/nvm.sh"
-        nvm install 22
-    fi
+if ! which bun >/dev/null 2>&1 && confirm "Install Bun?"; then
+    curl -fsSL https://bun.sh/install | bash
 fi
 echo
 
@@ -941,7 +942,7 @@ Type=simple
 User=$USER
 Group=$USER
 WorkingDirectory=$CURRENT_DIRECTORY/nextjs
-ExecStart="$(which node)" $CURRENT_DIRECTORY/nextjs/node_modules/.bin/next start
+ExecStart="$(which bun)" $CURRENT_DIRECTORY/nextjs/node_modules/.bin/next start
 Environment=NODE_ENV=production
 Restart=always
 RestartSec=10
@@ -992,14 +993,14 @@ elif [[ "$SERVICE_MANAGER" = "service" ]]; then
     sudo update-rc.d $FASTAPI_APP_NAME defaults
 fi
 
-if confirm "Build nextjs app (npm required) ?"; then
+if confirm "Build nextjs app (bun required) ?"; then
     cd nextjs
-    # npm i sass dotenv postgres ioredis bcryptjs jsonwebtoken zod csv-parser
-    # npm i --save-dev @types/bcryptjs @types/jsonwebtoken
-    # npm i -D drizzle-kit
-    # npm i --force drizzle-orm react-intersection-observer
-    npm install
-    npm run build
+    # bun i sass dotenv postgres ioredis bcryptjs jsonwebtoken zod csv-parser
+    # bun i drizzle-orm react-intersection-observer
+    # bun i --save-dev @types/bcryptjs @types/jsonwebtoken
+    # bun i -D drizzle-kit
+    bun install
+    bun run build
     cd ..
 else
     color_echo "Build nextjs skipped" "35"

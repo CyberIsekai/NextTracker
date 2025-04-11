@@ -1,6 +1,8 @@
 
 <h1 align="center">NextTracker (Call of duty game tracking)</h1>
 
+[Live demo](https://next-tracker.ru/)
+
 ## Get started
 Make executable with command `chmod +x start.sh`
 

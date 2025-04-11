@@ -833,9 +833,14 @@ if confirm "Setup nginx config ?"; then
     sudo bash -c 'cat > '$NGINX_CONFIG' << EOL
 user '$USER';
 
-worker_processes  1;
+worker_processes  auto;
+worker_cpu_affinity auto;
+pid /run/nginx.pid;
+error_log /var/log/nginx/error.log;
+include /etc/nginx/modules-enabled/*.conf;
+
 events {
-    worker_connections  1024;
+    worker_connections  768;
 }
 
 http {
@@ -928,6 +933,7 @@ echo
 
 if ! which bun >/dev/null 2>&1 && confirm "Install Bun?"; then
     curl -fsSL https://bun.sh/install | bash
+    source ~/.bashrc
 fi
 echo
 

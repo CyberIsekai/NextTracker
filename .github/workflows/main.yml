@@ -1,0 +1,28 @@
+name: CI Pipeline
+on: [push]
+
+jobs:
+  nextjs:
+    runs-on: ubuntu-latest
+    steps:
+      # Check out the repository first
+      - uses: actions/checkout@v4
+
+      # Set up Bun
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # Cache Bun modules
+      - name: Cache Bun modules
+        uses: actions/cache@v3
+        with:
+          path: nextjs/node_modules
+          key: bun-modules-${{ hashFiles('nextjs/bun.lockb') }}
+
+      # Install & Build Next.js
+      - name: Install & Build Next.js
+        working-directory: nextjs
+        run: |
+          bun install
+          bun run build

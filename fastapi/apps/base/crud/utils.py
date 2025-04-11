@@ -511,10 +511,13 @@ def in_logs_request(
 
 def in_logs_ip(db: Session, ip: str):
     data = get_data(f'http://ip-api.com/json/{ip}')
-    if error := data[C.ERROR]:
-        data = {C.STATUS: 'fail', C.MESSAGE: error}
-    elif 'query' in data:
-        del data['query']
+    if data[C.ERROR]:
+        data = {C.STATUS: 'fail', C.MESSAGE: data[C.ERROR]}
+    else:
+        data = data[C.DATA]
+
+    # if 'query' in data:
+    #     del data['query']
 
     table = LOGS_TABLES['logs_ip']
     db.add(table(target=ip, message='', data=data))
@@ -532,7 +535,7 @@ def get_ip_data(db: Session, ip: str):
 
     if is_local_ip(ip):
         data = {C.STATUS: 'fail', C.MESSAGE: 'private range'}
-    elif have := db.query(table.data).filter(table.ip == ip).first():
+    elif have := db.query(table.data).filter(table.target == ip).first():
         data = have.data
     else:
         data = in_logs_ip(db, ip)

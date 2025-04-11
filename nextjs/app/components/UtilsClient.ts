@@ -84,17 +84,21 @@ export function local_profile_manage(user_profile?: UserProfile) {
   }
 }
 
+export async function translate_set() {
+  const res = await fetch_request<TranslatesStore>('translate_store')
+
+  if (!res || res.detail) return
+
+  local_storage(C.TRANSLATE, 'set', res)
+
+  return res
+}
+
 export async function translate_get() {
   const stored_translate = local_storage(C.TRANSLATE)
 
   if (!stored_translate) {
-    const res = await fetch_request<TranslatesStore>('translate_store')
-
-    if (!res || res.detail) return
-
-    local_storage(C.TRANSLATE, 'set', res)
-
-    return res
+    return translate_set()
   }
 
   const [version_epoch_time, user_version] = stored_translate.version.split('_')
@@ -108,12 +112,14 @@ export async function translate_get() {
 
   // check for actual version
   const version_check = await fetch_request<Status>(`translate_version_check/${user_version}`)
-  if (version_check?.status) {
-    // update version_epoch_time
-    stored_translate.version = `${date_epoch_now}_${user_version}`
-    local_storage(C.TRANSLATE, 'set', stored_translate)
-    return stored_translate
+  if (!version_check?.status) {
+    return translate_set()
   }
+
+  // update version_epoch_time
+  stored_translate.version = `${date_epoch_now}_${user_version}`
+  local_storage(C.TRANSLATE, 'set', stored_translate)
+  return stored_translate
 }
 
 export type LocalStorageTarget = C.TRANSLATE | 'profile'

@@ -31,7 +31,7 @@ MATCHES_STATS: MatchesStats = {
 def player_init(data: dict) -> Player:
     time_now = datetime.datetime.now(datetime.UTC).isoformat().replace('+00:00', 'Z')
     log: GameStatusLog = {
-        C.UNO: '',
+        C.UNO: data.get(C.UNO) or '',
         C.GAME_MODE: C.MW_MP,
         'records': 0,
         C.SOURCE: player_init.__name__,

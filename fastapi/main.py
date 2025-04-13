@@ -38,7 +38,10 @@ app.include_router(RouterTracker)
 app.include_router(RouterTrackerProtected)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[f'http://{static_ip}' for static_ip in settings.STATIC_IPS],
+    allow_origins=(
+        [f'http://{static_ip}' for static_ip in settings.STATIC_IPS]
+        + [f'https://{static_ip}' for static_ip in settings.STATIC_IPS]
+    ),
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],

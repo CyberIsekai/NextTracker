@@ -287,6 +287,8 @@ const UpdateButton = ({ shared }: { shared: ContextMatchesStatsNavigation }) => 
     return updateButton || (
         <button
             type="button"
+            name={t('update')}
+            title={t(`update ${data_type} for ${target_data}`)}
             className="dropdown link text-white"
             onClick={update_fetch}
         >

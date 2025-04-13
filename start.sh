@@ -439,7 +439,8 @@ if [ -f .env ]; then
         redis-cli flushall
         manage_process "postgresql" "restart"
 
-        if confirm "Delete database $DATABASE_NAME ?"; then
+        if confirm "Delete database $DATABASE_NAME ?
+(save connection settings from .env file, if answer 'NO')"; then
             sudo -u postgres psql -c "DROP DATABASE $DATABASE_NAME;"
 
             ALEMBIC_DIRECTORY=fastapi/alembic/versions
@@ -582,7 +583,7 @@ if confirm "Setup settings ? Active PostgreSQL required"; then
     if [[ -z "$DATABASE_PASSWORD" ]]; then
         # If the password is empty, generate a random password
         DATABASE_PASSWORD=$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | head -c 12)
-        color_echo "Generated Database password: $DATABASE_PASSWORD" "35"
+        color_echo "Generated Database password, check in .env file" "35"
     fi
     read -e -p "Database name: " -i "tracker_base" DATABASE_NAME
     echo
@@ -595,7 +596,7 @@ if confirm "Setup settings ? Active PostgreSQL required"; then
     if [[ -z "$ADMIN_PASSWORD" ]]; then
         # If the password is empty, generate a random password
         ADMIN_PASSWORD=$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | head -c 12)
-        color_echo "Generated admin password: $ADMIN_PASSWORD" "35"
+        color_echo "Generated admin password, check in .env file" "35"
     fi
     echo
 
@@ -607,6 +608,8 @@ FASTAPI_APP_NAME=$FASTAPI_APP_NAME
 STATIC_IP=$STATIC_IP # fastapi endpoint
 STATIC_IP_2=$STATIC_IP_2 # nextjs endpoint (if empty will be used 'STATIC_IP')
 STATIC_IP_3=$STATIC_IP_3 # Extra nextjs endpoint
+
+PROTOCOL=http
 
 # auth cookie for recieve player matches history
 ACT_SSO_COOKIE=
@@ -726,16 +729,16 @@ EOL"
             sudo mkdir $TRACKER_FOLDER # create folder and copy csv tables dumps
 
             tables=$CURRENT_DIRECTORY/static/files/tables.zip
-            color_echo "Start import $(sudo unzip -l "$tables")" "33"
+            color_echo "Start extract $(sudo unzip -l "$tables")" "33"
             sudo unzip "$tables" -d "$TRACKER_FOLDER"
 
             tables_optional=$CURRENT_DIRECTORY/static/files/tables_optional.zip
             if unzip -l "$tables_optional" >/dev/null 2>&1 && confirm "
-            Import these optional tables ? 
-            $(sudo du -h "$tables_optional")
-            $(sudo unzip -l "$tables_optional")
-            This will take some time to unpack,
-            then import into the database and required about 11 GB of free space"; then
+Extract these optional tables ? 
+$(sudo du -h "$tables_optional")
+$(sudo unzip -l "$tables_optional")
+This will take some time to unpack,
+then import into the database and required about 11 GB of free space"; then
                 color_echo "Start import $tables_optional" "33"
                 sudo unzip "$tables_optional" -d "$TRACKER_FOLDER"
             fi
@@ -803,11 +806,11 @@ print(hashed)
 
             REDIS_CONF=/etc/redis/redis.conf
             color_echo "
-            for remote connection to redis server
-            allow 6379 port
-            in $REDIS_CONF set:
-            bind $REMOTE_HOST
-            requirepass <DATABASE_PASSWORD>
+for remote connection to redis server
+allow 6379 port
+in $REDIS_CONF set:
+bind $REMOTE_HOST
+requirepass <DATABASE_PASSWORD>
             " "32"
         else
             color_echo "REMOTE_HOST was empy" "35"
@@ -933,7 +936,7 @@ http {
 
 EOL'
     color_echo "Nginx config added" "32"
-    sudo ufw allow 'Nginx Full'
+    sudo ufw allow 80,443/tcp
     sudo nginx -t
     manage_process "nginx" "restart"
 else
@@ -1012,9 +1015,8 @@ fi
 if confirm "Build nextjs app (bun required) ?"; then
     cd nextjs
     # bun i sass dotenv postgres ioredis bcryptjs jsonwebtoken zod csv-parser
-    # bun i drizzle-orm react-intersection-observer
-    # bun i --save-dev @types/bcryptjs @types/jsonwebtoken
-    # bun i -D drizzle-kit
+    # bun i drizzle-orm drizzle-kit react-intersection-observer
+    # bun i @types/bcryptjs @types/jsonwebtoken
     bun install
     bun run build
     cd ..

@@ -278,10 +278,8 @@ export const get_url = (
     sessionStorage.setItem('hostname', hostname)
   }
 
-  const protocol = url_type === 'ws' ? `${url_type}:` : 'https:'
-    // typeof window === 'object' ? window.location.protocol : 'https:'
-
-  const url = `${protocol}//${hostname}${path}`
+  const protocol = (url_type === 'ws' ? 'ws' : process.env.PROTOCOL!) as 'ws' | 'http' | 'https'
+  const url = `${protocol}://${hostname}${path}`
 
   return url
 }

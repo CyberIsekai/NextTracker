@@ -192,7 +192,7 @@ def panel_get(db: Session) -> Panel:
 
     return {
         'statuses': {
-            C.STATUS: redis_manage(C.STATUS),
+            C.STATUS: redis_manage(C.STATUS) or C.INACTIVE,
             C.MONITOR: bool(monitor_time),
             C.AUTO_UPDATE: get_status(C.AUTO_UPDATE),
             'store_data': get_status('store_data'),

@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
     ADMIN_LOGIN: process.env.ADMIN_LOGIN,
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
     STATIC_IPS: JSON.stringify(STATIC_IPS),
+    PROTOCOL: process.env.PROTOCOL,
     NEXTJS_PORT: process.env.NEXTJS_PORT,
     TOKEN_EXPIRE_DAYS: process.env.TOKEN_EXPIRE,
     MATCHES_INTERVAL_MINUTES: process.env.MATCHES_INTERVAL,
@@ -52,7 +53,7 @@ ${process.env.DATABASE_NAME}`
   images: {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: STATIC_IPS.map(static_ip => ({
-      protocol: 'https',
+      protocol: process.env.PROTOCOL as 'http' | 'https',
       hostname: static_ip,
       port: '',
       pathname: '/map/**',

@@ -236,19 +236,25 @@ def most_play_with_update(db: Session):
             for t in game_tables:
                 find = (
                     db.query(t.table.username, t.table.clantag)
-                    .filter(t.table.uno == uno)
+                    .filter(t.table.uno == uno, t.table.username != None)
                     .first()
                 )
-                if find and find.username:
+                if find:
                     uno_tags[uno] = {
                         C.USERNAME: find.username,
                         C.CLANTAG: find.clantag or '',
                     }
                     break
 
+            if uno not in uno_tags:
+                uno_tags[uno] = {
+                    C.USERNAME: 'unknown',
+                    C.CLANTAG: '',
+                }
+
             return uno_tags[uno]
 
-        for index, most_common_uno in enumerate(most_common_uno_all):
+        for index, most_common_uno in enumerate(most_common_uno_all, 1):
 
             uno: str = most_common_uno[C.UNO]
             group: str | None = most_common_uno.get(C.GROUP)
@@ -317,7 +323,7 @@ def most_play_with_update(db: Session):
                     | find_uno_tag(match_uno)
                 )
 
-            if (index % 10) == 0:
+            if (index % 50) == 0:
                 current_percent = int(index / len(most_common_uno_all) * 100)
                 print(most_play_with_update.__name__, game_mode, f'{current_percent}%')
 

@@ -2,7 +2,7 @@ import datetime
 import logging
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 from redis import ConnectionPool
 from pydantic import PostgresDsn, field_validator
 from pydantic_settings import BaseSettings
@@ -38,6 +38,7 @@ class Settings(BaseSettings):
         days=int(os.getenv('TOKEN_EXPIRE'))
     )
     STATIC_IPS: list[str] = []
+    PROTOCOL: Literal['http', 'https'] = os.getenv('PROTOCOL')
     LANGUAGES: tuple[str, ...] = Language.__args__
 
     TEST_GROUP: str = os.getenv('TEST_GROUP')
@@ -95,7 +96,7 @@ class Settings(BaseSettings):
     def assemble_connection_redis(cls, _):
         return ConnectionPool(
             host=os.getenv('STATIC_IP'),
-            password=os.getenv('DATABASE_PASSWORD'),
+            # password=os.getenv('DATABASE_PASSWORD'),
             port=6379,
             db=0,
             decode_responses=False,

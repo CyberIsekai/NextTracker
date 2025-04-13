@@ -132,18 +132,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             p-2 m-2xl:hidden fixed bottom-0 right-0 w-1/5 flex items-center
             justify-end shadow bg-gradient-to-l from-gray-800"
         >
-            <div className="flex flex-col">
-                <span className="text-sm text-gray-500 sm:text-center dark:text-gray-400">
-                    <Link href="/" className="hover:underline">
-                        {process.env.APP_NAME!}
-                    </Link>
-                </span>
-                <ul className="flex flex-wrap items-centertext-sm text-gray-500 mt-0">
-                    <li className="mr-4 hover:underline md:mr-6">
-                        <Link href="/stats">{t(`${C.TRACKER} ${C.STATS}`)}</Link>
-                    </li>
-                </ul>
-            </div>
+            <span className="text-sm text-gray-500 sm:text-center dark:text-gray-400">
+                <Link href="/stats">{t(`${C.TRACKER} ${C.STATS}`)}</Link>
+            </span>
         </footer>
     </>
 }

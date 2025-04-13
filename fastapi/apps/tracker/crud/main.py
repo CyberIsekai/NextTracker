@@ -1760,7 +1760,7 @@ def matches_router(db: Session, body: Router) -> MatchesResponse:
             query_table = query_target
 
         if query_date:
-            query_table += ' AND ' if query_table else 'WHERE '
+            query_table += ' AND ' if query_table.strip() else 'WHERE '
             query_table += query_date
 
         selects.append(

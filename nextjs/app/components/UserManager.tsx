@@ -89,26 +89,28 @@ export default function UserManager(
     }, [profile])
 
     const UserLanguage = () => (
-        <select
-            className="p-1 text-center text-xs bg-transparent disabled:opacity-75"
-            onChange={e => {
-                const language = LanguageSchema.parse(e.target.value)
-                startTransition(() => user_update(
-                    { ...user, language },
-                    user_edit_language.bind(null, login, language)
-                ))
-            }}
-            defaultValue={optimistic.user.language}
-            disabled={optimistic.pending}
-        >
-            {LanguageSchema.options.map(language => (
-                <option
-                    key={language}
-                    title={t(`change_lang ${language}`)}
-                    value={language}
-                >{t(language)}</option>
-            ))}
-        </select>
+        <label title={t('change_lang')}>
+            <select
+                className="p-1 text-center text-xs bg-transparent disabled:opacity-75"
+                onChange={e => {
+                    const language = LanguageSchema.parse(e.target.value)
+                    startTransition(() => user_update(
+                        { ...user, language },
+                        user_edit_language.bind(null, login, language)
+                    ))
+                }}
+                defaultValue={optimistic.user.language}
+                disabled={optimistic.pending}
+            >
+                {LanguageSchema.options.map(language => (
+                    <option
+                        key={language}
+                        title={t(`change_lang ${language}`)}
+                        value={language}
+                    >{t(language)}</option>
+                ))}
+            </select>
+        </label>
     )
 
     const UserRole = () => {

@@ -104,7 +104,11 @@ async function redis_manage(
     value: RedisValue | RedisValue[] = 0,
     index = 0,
 ): Promise<RedisValue | RedisValue[] | null> {
-    const redis = new Redis()
+    const STATIC_IPS: string[] = JSON.parse(process.env.STATIC_IPS!)
+    const redis = new Redis({
+        host: STATIC_IPS[0],
+        password: process.env.DATABASE_PASSWORD,
+    })
     let res: RedisValue | RedisValue[] | null = null
 
     if (action === 'get') {

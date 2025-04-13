@@ -93,7 +93,13 @@ class Settings(BaseSettings):
 
     @field_validator('REDIS_CONNECTION_POOL')
     def assemble_connection_redis(cls, _):
-        return ConnectionPool(host='localhost', port=6379, db=0, decode_responses=False)
+        return ConnectionPool(
+            host=os.getenv('STATIC_IP'),
+            password=os.getenv('DATABASE_PASSWORD'),
+            port=6379,
+            db=0,
+            decode_responses=False,
+        )
 
     @field_validator('SESSION')
     def assemble_session(cls, _):

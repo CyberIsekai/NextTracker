@@ -117,7 +117,7 @@ function rerun_script() {
 if [[ "$ACTION" == "update" ]]; then
     git stash
     GIT_RESPONSE=$(git pull)
-    chmod +x install.sh manage.sh
+
     if [[ $GIT_RESPONSE == "Already up to date." ]]; then
         color_echo "Actual version" "32"
     else
@@ -575,6 +575,7 @@ fi
 
 if confirm "Setup settings ? Active PostgreSQL required"; then
     read -e -p "Database server address: " -i "localhost" DATABASE_HOST
+    read -e -p "Database port: " -i "5432" DATABASE_PORT
     read -e -p "Database user: " -i "tracker_user" DATABASE_USER
     read -s -p "Database password (leave empty for auto-generated): " DATABASE_PASSWORD
     echo
@@ -611,7 +612,7 @@ STATIC_IP_3=$STATIC_IP_3 # Extra nextjs endpoint
 ACT_SSO_COOKIE=
 
 DATABASE_HOST=$DATABASE_HOST
-DATABASE_PORT=5432
+DATABASE_PORT=$DATABASE_PORT
 DATABASE_NAME=$DATABASE_NAME
 DATABASE_USER=$DATABASE_USER
 DATABASE_PASSWORD=$DATABASE_PASSWORD
@@ -776,7 +777,7 @@ print(hashed)
         color_echo "User [$ADMIN_LOGIN] was added as admin on tracker with given password" "32"
     fi
 
-    if confirm "Allow outside connect to PostgreSQL (5432 port) ?"; then
+    if confirm "Allow remote connection to PostgreSQL ($DATABASE_PORT port) ?"; then
         # Set the configuration file paths
         PG_CONF=/etc/postgresql/$PG_VERSION/main/postgresql.conf
         PG_HBA_CONF=/etc/postgresql/$PG_VERSION/main/pg_hba.conf
@@ -797,8 +798,17 @@ print(hashed)
         read -p "Enter the address from which the connection will be: " REMOTE_HOST
         if [[ -n "$REMOTE_HOST" ]]; then
             echo "host    all     all     $REMOTE_HOST/32    scram-sha-256" | sudo tee -a $PG_HBA_CONF >/dev/null
-            sudo ufw allow 5432/tcp
-            color_echo "REMOTE_HOST access via 5432 port $REMOTE_HOST added to $PG_HBA_CONF" "32"
+            sudo ufw allow $DATABASE_PORT/tcp
+            color_echo "REMOTE_HOST access via $DATABASE_PORT port $REMOTE_HOST added to $PG_HBA_CONF" "32"
+
+            REDIS_CONF=/etc/redis/redis.conf
+            color_echo "
+            for remote connection to redis server
+            allow 6379 port
+            in $REDIS_CONF set:
+            bind $REMOTE_HOST
+            requirepass <DATABASE_PASSWORD>
+            " "32"
         else
             color_echo "REMOTE_HOST was empy" "35"
         fi

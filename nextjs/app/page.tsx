@@ -251,10 +251,9 @@ export default function Search() {
         text-3xl mt-0 mb-2 text-teal-600"
       >{t(C.SEARCH)}</div>
       <form className='p-4 flex m-auto min-w-[44rem] max-w-4xl' action={player_search}>
-        <label>
+        <label title={t(`select ${C.PLATFORM}`)}>
           <select
             className="p-2 h-full rounded-l bg-white text-gray-500"
-            title={t(`select ${C.PLATFORM}`)}
             name={C.PLATFORM}
             onChange={e => change_platform(PlatformSchema.parse(e.target.value))}
             disabled={searching}
@@ -268,19 +267,20 @@ export default function Search() {
           </select>
         </label>
         {platform === 'tracker_search' && (
-          <select
-            className="bg-white text-gray-700 px-2 text-center"
-            title={t(`select ${C.TARGET} type`)}
-            name={C.DATA_TYPE}
-            onChange={e => setDataType(RouterDataTypeSchema.parse(e.target.value))}
-            value={dataType}
-          >
-            {RouterDataTypeSchema.options.map(search_type => (
-              <option key={search_type} value={search_type}>
-                {t(search_type)}
-              </option>
-            ))}
-          </select>
+          <label title={t(`select ${C.TARGET} type`)}>
+            <select
+              className="bg-white text-gray-700 px-2 text-center"
+              name={C.DATA_TYPE}
+              onChange={e => setDataType(RouterDataTypeSchema.parse(e.target.value))}
+              value={dataType}
+            >
+              {RouterDataTypeSchema.options.map(search_type => (
+                <option key={search_type} value={search_type}>
+                  {t(search_type)}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
         <input
           type="text"

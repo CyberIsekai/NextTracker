@@ -191,19 +191,21 @@ const Resets = ({ resets }: { resets: ResetType[] }) => {
         title={t('reset')}
         disabled={fetching}
       >{t('reset')}</button>
-      <select
-        name={C.NAME}
-        className="rounded-r text-center bg-white"
-      >
-        <option value="">
-          {fetching ? `${t('resetting')}...` : t('choose_an_option')}
-        </option>
-        {resets.map(name => (
-          <option key={name} value={name}>
-            {t(name)}
+      <label title={t('select reset option')}>
+        <select
+          name={C.NAME}
+          className="rounded-r text-center bg-white"
+        >
+          <option value="">
+            {fetching ? `${t('resetting')}...` : t('choose_an_option')}
           </option>
-        ))}
-      </select>
+          {resets.map(name => (
+            <option key={name} value={name}>
+              {t(name)}
+            </option>
+          ))}
+        </select>
+      </label>
       <span className="ml-2">{status}</span>
     </form>
   )
@@ -241,21 +243,23 @@ const ActualizeFullmatches = ({ groups }: { groups: string[] }) => {
         title={t('start actualize')}
         disabled={fetching}
       >{t(`actualize ${C.FULLMATCHES}`)}</button>
-      <select
-        name={C.MODE}
-        title={t(`choose ${C.MODE}`)}
-        className="text-center text-gray-500 bg-white"
-      >
-        <option value={C.WZ}>{t(C.WZ)}</option>
-        <option value={C.MP}>{t(C.MP)}</option>
-      </select>
-      <select
-        name={C.UNO}
-        title={t(`choose ${C.GROUP}`)}
-        className="text-center text-gray-500 bg-white rounded-r"
-      >
-        {groups.map(group => <option key={group} value={group}>{group}</option>)}
-      </select>
+      <label title={t(`choose ${C.MODE}`)}>
+        <select
+          name={C.MODE}
+          className="text-center text-gray-500 bg-white"
+        >
+          <option value={C.WZ}>{t(C.WZ)}</option>
+          <option value={C.MP}>{t(C.MP)}</option>
+        </select>
+      </label>
+      <label title={t(`choose ${C.GROUP}`)}>
+        <select
+          name={C.UNO}
+          className="text-center text-gray-500 bg-white rounded-r"
+        >
+          {groups.map(group => <option key={group} value={group}>{group}</option>)}
+        </select>
+      </label>
       <span className="ml-2">{status}</span>
     </form>
   )
@@ -317,14 +321,15 @@ const ClearFullmatchDoubles = () => {
         className="button-style-1 rounded-l"
         disabled={fetching}
       >{t('clear fullmatch doubles')}</button>
-      <select
-        name={C.GAME_MODE}
-        className="text-center text-gray-500 bg-white"
-        title={t(`choose ${C.GAME_MODE}`)}
-      >
-        <option value={C.MW_WZ}>{t(C.MW_WZ)}</option>
-        <option value={C.MW_MP}>{t(C.MW_MP)}</option>
-      </select>
+      <label title={t(`choose ${C.GAME_MODE}`)}>
+        <select
+          name={C.GAME_MODE}
+          className="text-center text-gray-500 bg-white"
+        >
+          <option value={C.MW_WZ}>{t(C.MW_WZ)}</option>
+          <option value={C.MW_MP}>{t(C.MW_MP)}</option>
+        </select>
+      </label>
       <input
         type="text"
         name={C.MATCHID}

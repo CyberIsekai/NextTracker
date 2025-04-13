@@ -52,13 +52,21 @@ ${process.env.DATABASE_NAME}`
   images: {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: STATIC_IPS.map(static_ip => ({
-      protocol: 'http',
+      protocol: 'https',
       hostname: static_ip,
       port: '',
       pathname: '/map/**',
       search: '',
     })),
   },
+  allowedDevOrigins: [...STATIC_IPS, '192.168.0.100', 'localhost'],
+  // uncomment this only if need build on low-resource server
+  // typescript: {
+  //   ignoreBuildErrors: true,
+  // },
+  // eslint: {
+  //   ignoreDuringBuilds: true,
+  // },
 }
 
 export default nextConfig

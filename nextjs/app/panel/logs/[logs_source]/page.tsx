@@ -239,7 +239,7 @@ export default function LogsSourcePage({ params }: {
                         <td>{log.id}</td>
                         <td>{log.client}</td>
                         <td className="text-left">{log.path}</td>
-                        <td>{log.user_agent}</td>
+                        <td className="max-w-2xl">{log.user_agent}</td>
                         <LogData name={C.DATA} log={log} title={log.path} />
                         <td><FormatedTime time={log.time} /></td>
                         <td><DeleteLog id={log.id} name={log.user_agent} /></td>

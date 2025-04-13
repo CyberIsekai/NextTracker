@@ -276,17 +276,19 @@ const LabelRow = ({
         }
 
         return (
-            <select
-                className="p-1 text-center text-xs bg-transparent"
-                onChange={e => change_game_mode(GameModeSchema.parse(e.target.value))}
-                defaultValue={label.game_mode}
-            >
-                {GameModeSchema.options.map(game_mode => (
-                    <option key={game_mode} value={game_mode}>
-                        {t(game_mode)}
-                    </option>
-                ))}
-            </select>
+            <label title={t(`choose ${C.GAME_MODE}`)}>
+                <select
+                    className="p-1 text-center text-xs bg-transparent"
+                    onChange={e => change_game_mode(GameModeSchema.parse(e.target.value))}
+                    defaultValue={label.game_mode}
+                >
+                    {GameModeSchema.options.map(game_mode => (
+                        <option key={game_mode} value={game_mode}>
+                            {t(game_mode)}
+                        </option>
+                    ))}
+                </select>
+            </label>
         )
     }
 

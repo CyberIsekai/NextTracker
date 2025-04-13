@@ -274,12 +274,12 @@ export const get_url = (
   let hostname = sessionStorage.getItem('hostname')
   if (!hostname) {
     const STATIC_IPS: string[] = JSON.parse(process.env.STATIC_IPS!)
-    hostname = STATIC_IPS[0] || STATIC_IPS[1] || 'localhost'
+    hostname = STATIC_IPS[1] || STATIC_IPS[0]
     sessionStorage.setItem('hostname', hostname)
   }
 
-  const protocol = url_type === 'ws' ? `${url_type}:` :
-    typeof window === 'object' ? window.location.protocol : 'http:'
+  const protocol = url_type === 'ws' ? `${url_type}:` : 'https:'
+    // typeof window === 'object' ? window.location.protocol : 'https:'
 
   const url = `${protocol}//${hostname}${path}`
 

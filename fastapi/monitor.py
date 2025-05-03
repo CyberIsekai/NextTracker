@@ -132,10 +132,11 @@ def monitor_tasks():
     count_time = 0
 
     while MONITOR.on:
-        count_time += MONITOR.TASK_QUEUES_INTERVAL
-        if count_time > MONITOR.AUTO_UPDATE_INTERVAL and get_status(C.AUTO_UPDATE):
-            add_to_task_queues(C.ALL, C.ALL, C.ALL)
-            count_time = 0
+        if MONITOR.AUTO_UPDATE_INTERVAL:
+            count_time += MONITOR.TASK_QUEUES_INTERVAL
+            if count_time > MONITOR.AUTO_UPDATE_INTERVAL and get_status(C.AUTO_UPDATE):
+                add_to_task_queues(C.ALL, C.ALL, C.ALL)
+                count_time = 0
 
         task: Task | None = redis_manage(C.TASK_QUEUES, 'lindex')
         if task is None or task[C.STATUS] != STask.PENDING:

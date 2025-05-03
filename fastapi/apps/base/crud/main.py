@@ -285,7 +285,6 @@ def logs_get(db: Session, source: LogsSource, page: int) -> LogsResponse:
                 'cod_logs',
                 'cod_logs_error',
                 'logs_ip',
-                'logs_url',
             )
         )
         logs_request = tuple(

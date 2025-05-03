@@ -9,7 +9,7 @@ from starlette.requests import Request
 from core.config import settings
 
 from apps.base.schemas.main import C
-from apps.base.crud.utils import in_logs_request, json_error, manage_monitor
+from apps.base.crud.utils import in_logs_request, json_error, manage_monitor, to_dict
 from apps.base.routers.main import router as RouterBase
 from apps.base.routers.protected import router as RouterBaseProtected
 
@@ -50,6 +50,9 @@ app.add_middleware(
 
 @app.middleware('http')
 async def request_middleware(request: Request, call_next):
+    body = await request.body()
+    request.state.body = to_dict(body.decode()) if body else None
+
     try:
         res = await call_next(request)
     except Exception as e:

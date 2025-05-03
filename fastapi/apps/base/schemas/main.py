@@ -386,6 +386,7 @@ class LogsRequestData(BaseModel):
     login: str
     detail: str | None = None
     trace: str | None = None
+    body: dict[str, str | int] | None
 
 
 class LogsRequest(BaseModel):

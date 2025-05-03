@@ -144,10 +144,15 @@ def is_float(s: str):
 def seconds_wait_expire(
     date: datetime.datetime | str | None, delay: datetime.timedelta
 ) -> int:
+
+    if not delay:  # not provided, return positive number for not updating data
+        return 1
+
     if not date:
         date = now()
     elif isinstance(date, str):
         date = date_format(date)
+
     expire_epoch_date = (date + delay).timestamp()
     seconds_left = int(expire_epoch_date - now(C.EPOCH))
 
@@ -337,6 +342,7 @@ def format_request(request: Request) -> RequestData:
         'client': client,
         C.LOGIN: token_decode(request.headers.get(C.TOKEN)),
         'user_agent': request.headers.get('user-agent'),
+        'body': request.state.body,
     }
 
 
@@ -491,10 +497,15 @@ def in_logs_request(
 ):
     formated_request = format_request(request)
 
-    if is_local_ip(formated_request['client']) and not data:
+    # disable logging requests without errors for myself
+    if not data and (
+        formated_request[C.LOGIN] == settings.ADMIN_LOGIN  # for admin
+        or is_local_ip(formated_request['client'])  # for local ip
+    ):
         return
 
     data[C.LOGIN] = data.get(C.LOGIN) or formated_request[C.LOGIN]
+    data['body'] = formated_request['body']
 
     with next(get_db()) as db:
         data['ip'] = get_ip_data(db, formated_request['client'])

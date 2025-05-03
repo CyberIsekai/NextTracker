@@ -1041,10 +1041,12 @@ def group_players(uno: str, players: list[cod_players]):
 def tracker_stats_get(db: Session):
     stats: TrackerStats = config_get(db, C.STATS, C.TRACKER).first()
 
-    if (
-        not stats.data
-        or not stats.time
-        or not seconds_wait_expire(stats.time, settings.STATS_INTERVAL_WEEKS)
+    if not any(
+        (
+            stats.data,
+            stats.time,
+            seconds_wait_expire(stats.time, settings.STATS_INTERVAL_WEEKS),
+        )
     ):
         stats = tracker_stats_update(db)
     else:

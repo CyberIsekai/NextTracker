@@ -77,6 +77,7 @@ export const LogsRequestDataSchema = z.object({
     login: UserLoginSchema,
     detail: z.string().nullable(),
     trace: z.string().nullable(),
+    body: z.record(z.string(), z.string().or(z.number())).nullable(),
 })
 export type LogsRequestData = z.infer<typeof LogsRequestDataSchema>
 

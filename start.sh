@@ -639,10 +639,10 @@ FASTAPI_MONITOR_PORT=8001
 TEST_GROUP=test_group
 
 TOKEN_EXPIRE=30
-MATCHES_INTERVAL=15
-STATS_INTERVAL=1
-TASK_QUEUES_INTERVAL=5
-AUTO_UPDATE_INTERVAL=1
+MATCHES_INTERVAL=15 # minutes, update player matches
+STATS_INTERVAL=0 # weeks, update stats
+TASK_QUEUES_INTERVAL=5 # seconds, monitor checking for new tasks
+AUTO_UPDATE_INTERVAL=0 # days, monitor checking for new matches for all players
 
 NAME_LIMIT=40
 NAME_LIMIT_2=100

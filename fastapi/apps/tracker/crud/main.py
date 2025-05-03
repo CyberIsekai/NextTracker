@@ -923,24 +923,30 @@ def validate_update_player(
             status.HTTP_405_METHOD_NOT_ALLOWED,
             f'{C.MATCHES} [{username}] already parsed',
         )
+
     if data_type == C.FULLMATCHES_PARS:
         pass
+
     elif game_mode == C.ALL:
         pass
+
     elif data_type == C.MATCHES and player_status == SPlayerParsed.NONE:
         return json_error(
             status.HTTP_405_METHOD_NOT_ALLOWED,
             f'[{username}] {C.PLAYER} not {C.ENABLED}',
         )
+
     elif game_status == SGame.NOT_ENABLED:
         return json_error(
             status.HTTP_405_METHOD_NOT_ALLOWED,
             f'[{username}] {game_mode} not {C.ENABLED}',
         )
+
     elif game_status == SGame.DISABLED:
         return json_error(
             status.HTTP_405_METHOD_NOT_ALLOWED, f'[{username}] {game_mode} {C.DISABLED}'
         )
+
     elif data_type == C.MATCHES and game_status == SGame.ENABLED:
         last_log = player[C.GAMES][game_mode][C.MATCHES][C.LOGS][-1]
         if seconds_wait := seconds_wait_expire(
@@ -951,6 +957,7 @@ def validate_update_player(
                 C.TIME: last_log[C.TIME],
                 'seconds_wait': seconds_wait,
             }
+
     elif data_type == C.STATS:
         last_log = player[C.GAMES][game_mode][C.STATS][C.LOGS][-1]
         weeks = int(settings.STATS_INTERVAL_WEEKS.days / 7)

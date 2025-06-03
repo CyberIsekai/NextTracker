@@ -42,6 +42,7 @@ import {
     Message,
     RequestMethodSchema,
 } from '@/app/components/zod/Main'
+import { pop } from '@/app/components/Utils'
 
 export default function LogsSourcePage({ params }: {
     params?: Promise<{ logs_source: LogsSource }>
@@ -472,8 +473,7 @@ const LogData = ({ name, log, title }: {
     let text = ''
 
     if (!Array.isArray(log_data) && typeof log_data.trace === 'string') {
-        trace = log_data.trace
-        delete log_data.trace
+        trace = pop(log_data, 'trace') as typeof log_data.trace 
     }
     if (Object.keys(log_data).length) {
         text += JSON.stringify(log_data, null, 4)

@@ -1160,7 +1160,7 @@ def test_reset():
         C.PLAYERS,
         C.CHART,
         C.LOADOUT,
-        C.MOST_PLAY_WITH,
+        # C.MOST_PLAY_WITH,
         'matches_stats',
         'clear_players_match_doubles',
     )

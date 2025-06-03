@@ -138,7 +138,7 @@ export const matches_mw_mp = () => ({
     shotsFired: smallint('shotsFired'),
     team1Score: smallint('team1Score'),
     team2Score: smallint('team2Score'),
-    weaponStats: varchar('weaponStats'),
+    weaponStats: varchar(C.WEAPON_STATS),
 
     objectiveBrDoomstationActivation: smallint('objectiveBrDoomstationActivation'),
     objectiveBrDoomstationSuccess: smallint('objectiveBrDoomstationSuccess'),

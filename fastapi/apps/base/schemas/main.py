@@ -139,6 +139,7 @@ class C:
     CHART = 'chart'
     MOST_PLAY_WITH = 'most_play_with'
     LOADOUT = 'loadout'
+    WEAPON_STATS = 'weaponStats'
     GAMES_STATS = 'games_stats'
     TASK_QUEUES = 'task_queues'
     RAW = 'raw'

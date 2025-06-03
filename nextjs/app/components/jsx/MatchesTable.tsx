@@ -95,7 +95,7 @@ const initial_date_data = (matches: MatchesData[]) => {
             longestStreak: 0,
             assists: 0,
             score: 0,
-            scorePerMinute: 0
+            scorePerMinute: 0,
         },
         loadout: {},
         is_same_map: matches.length > 1 && matches.every(match => match.map.name === matches[0].map.name),

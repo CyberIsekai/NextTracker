@@ -14,6 +14,7 @@ import {
     NAME_LIMIT_2,
 } from '@/app/components/Consts'
 import * as logs_abstract from './logs_abstract'
+import * as base_abstract from './base_abstract'
 import { index_builder } from './utils'
 import {
     User,
@@ -105,4 +106,16 @@ export const logs_request_auth = pgTable(
         message: varchar(C.MESSAGE, { length: 400 }),
     },
     table => index_builder([table.id, table.time, table.path, table.message])
+)
+
+export const translate = pgTable(
+    C.TRANSLATE,
+    base_abstract.translate(),
+    table => index_builder([table.id])
+)
+
+export const translate_stats = pgTable(
+    'translate_stats',
+    base_abstract.translate(),
+    table => index_builder([table.id])
 )

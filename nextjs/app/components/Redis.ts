@@ -38,6 +38,7 @@ async function redis_manage(target: CachePlayer | CacheGroup, action: 'hget', ke
 async function redis_manage(target: CachePlayer | CacheGroup, action: 'hget', key: C.GAMES_STATS): Promise<GamesStats | null>
 
 async function redis_manage(target: CachePlayer, action: 'hget', key: C.GROUP): Promise<string | null>
+async function redis_manage(target: CachePlayer, action: 'hget', key: C.USERNAME): Promise<string[] | null>
 async function redis_manage(target: CachePlayer, action: 'hget', key: string): Promise<PlayerData[keyof PlayerData]>
 async function redis_manage(target: CachePlayer, action: 'hset', value: Record<string, PlayerData[keyof PlayerData]>): Promise<number>
 async function redis_manage(target: CachePlayer, action: 'hmget', fields: string[]): Promise<PlayerData[keyof PlayerData][]>
@@ -74,6 +75,8 @@ async function redis_manage(target: C.TASK_QUEUES, action: 'lrem', task: Task): 
 
 async function redis_manage(target: RedisTargetStatus): Promise<'0' | '1' | null>
 async function redis_manage(target: RedisTargetStatus, action: 'set', status: 0 | 1): Promise<'OK'>
+
+async function redis_manage(target: C.TRANSLATE): Promise<string | null>
 
 async function redis_manage(target: RedisTargetGet): Promise<RedisValue>
 // async function redis_manage(target: RedisTargetGet, action: 'set'): Promise<'OK'>

@@ -3,7 +3,9 @@ import { C } from '@/app/components/Consts'
 import { z_record_strict } from '@/app/components/zod/Utils'
 import { LabelDataSchema } from '@/app/components/zod/Label'
 import { PlayerUnoSchema } from '@/app/components/zod/Uno'
-import { MatchesSourceSchema } from '@/app/components/zod/MatchesSource'
+import {
+    MatchesSourceSchema,
+} from '@/app/components/zod/MatchesSource'
 import { YearSchema } from '@/app/components/zod/Table'
 import { GameModeOnlySchema } from '@/app/components/zod/GameMode'
 
@@ -22,8 +24,7 @@ export const MatchColumnSchema = z.enum([
 export type MatchColumn = z.infer<typeof MatchColumnSchema>
 
 export const GameBasicColumnSchema = z.enum([
-    C.DURATION,
-    ...MatchColumnSchema.options,
+    C.DURATION, ...MatchColumnSchema.options
 ])
 export type GameBasicColumn = z.infer<typeof GameBasicColumnSchema>
 
@@ -118,6 +119,7 @@ export const MatchStatsPlayerSchema = z.object({
     matchID: MatchIDSchema,
     map: LabelDataSchema,
     mode: LabelDataSchema,
+    team: z.string(),
     loadout: z.array(MatchLoadoutSchema),
     weaponStats: z.array(MatchLoadoutDataStatsSchema),
     source: MatchesSourceSchema,
@@ -147,7 +149,7 @@ export type MatchData = z.infer<typeof MatchDataSchema>
 export const MatchBodySchema = z.object({
     game_mode: GameModeOnlySchema,
     match_id: z.number().nonnegative(),
-    source: MatchesSourceSchema,
+    source: z.enum([C.MATCHES, C.BASIC, C.MAIN]),
     year: YearSchema,
 })
 export type MatchBody = z.infer<typeof MatchBodySchema>

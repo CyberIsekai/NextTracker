@@ -22,6 +22,11 @@ import {
     ConfigName,
     ConfigSource,
 } from '@/app/components/zod/Config'
+import {
+    TranslatesStore,
+    TranslateSchema,
+} from '@/app/components/zod/Language'
+import { Status } from '@/app/components/zod/Main'
 
 const LOGS_TABLES = {
     // LogsBasic
@@ -136,15 +141,22 @@ export const configs_get = async (): Promise<Config[]> => (
     await db.select().from(schema.configs).orderBy(schema.configs.id)
 )
 
-export const get_stats_row = async (table: Table & { id: SQLWrapper } | null): Promise<StatsRow> => {
-    if (!table) return { rows: 0, last_id: 0 }
-    const rows = (
-        await db.select({ count: sql<number>`count(*)::int` }).from(table)
-    )[0].count
+export const get_last_id = async (table: Table & { id: SQLWrapper }): Promise<number> => {
     const [data] = await db.select({ last_id: max(table.id) }).from(table)
     const last_id = data.last_id ? +data.last_id : 0
 
-    return { rows, last_id }
+    return last_id
+}
+
+export const get_stats_row = async (table: Table & { id: SQLWrapper } | null): Promise<StatsRow> => {
+    if (!table) return { rows: 0, last_id: 0 }
+
+    const [rows] = await db.select({ count: sql<number>`count(*)::int` }).from(table)
+
+    return {
+        rows: rows.count,
+        last_id: await get_last_id(table),
+    }
 }
 
 export const set_table_sequence = async (table: Table, id_seq?: number) => {
@@ -159,4 +171,50 @@ export const set_table_sequence = async (table: Table, id_seq?: number) => {
         query = `SELECT setval('${table_seq}', ${id_seq}, true)`
     }
     await db.execute(sql.raw(query))
+}
+
+export async function translate_store_get() {
+    const translate_store: TranslatesStore = {
+        translate: {},
+        translate_stats: {},
+        version: `${new Date().getTime()}_`
+    }
+
+    const translates = {
+        translate: await db.query.translate.findMany(),
+        translate_stats: await db.query.translate_stats.findMany(),
+    }
+
+    for (const translate_type of TranslateSchema.options) {
+        translate_store.version += translates[translate_type].length
+        for (const translate of translates[translate_type]) {
+            translate_store[translate_type][translate.name] = {
+                [C.EN]: translate.en,
+                [C.RU]: translate.ru,
+            }
+        }
+    }
+
+    return translate_store
+}
+
+export async function translate_version_update() {
+    let version = ''
+
+    for (const translate_type of TranslateSchema.options) {
+        const table = schema[translate_type]
+        const rows = (
+            await db.select({ count: sql<number>`count(*)::int` }).from(table)
+        )[0].count
+        version += rows
+    }
+
+    return version
+}
+
+export async function translate_version_check(user_version: string) {
+    const version = await redis_manage(C.TRANSLATE) || await translate_version_update()
+    const res: Status = { status: version === user_version }
+
+    return res
 }

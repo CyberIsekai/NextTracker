@@ -4,8 +4,10 @@ import { getTableName } from 'drizzle-orm'
 import * as schema from '@/app/components/drizzle/schema'
 import { C } from '@/app/components/Consts'
 import {
+    Year,
     YearWzTable,
     TableGameData,
+    YearWzTableSchema,
 } from '@/app/components/zod/Table'
 import {
     GameMode,
@@ -16,8 +18,8 @@ import {
 import {
     MatchesSource,
     MatchesSourceFullmatches,
-    MatchesSourceMatches,
 } from '@/app/components/zod/MatchesSource'
+import { MatchBody } from '@/app/components/zod/Match'
 
 const GAME_TABLES = {
     [C.MATCHES]: {
@@ -48,15 +50,23 @@ const GAME_TABLES = {
     },
 } as const
 
-export async function get_game_table(game_mode: GameModeOnly, source: C.MATCHES): Promise<typeof GAME_TABLES[C.MATCHES][C.MW_MP]>
+export async function get_game_table(game_mode: GameModeOnly, source: C.MATCHES): Promise<typeof GAME_TABLES[C.MATCHES][GameModeOnly]>
 export async function get_game_table(game_mode: C.MW_MP, source: C.MAIN): Promise<typeof GAME_TABLES[C.FULLMATCHES][C.MW_MP][C.MAIN]>
 export async function get_game_table(game_mode: C.MW_MP, source: C.BASIC): Promise<typeof GAME_TABLES[C.FULLMATCHES][C.MW_MP][C.BASIC]>
-export async function get_game_table(game_mode: C.MW_WZ, source: C.MAIN, year: YearWzTable): Promise<typeof GAME_TABLES[C.FULLMATCHES][C.MW_WZ][C.MAIN]['2020']>
-export async function get_game_table(game_mode: C.MW_WZ, source: C.BASIC, year: YearWzTable): Promise<typeof GAME_TABLES[C.FULLMATCHES][C.MW_WZ][C.BASIC]['2020']>
+export async function get_game_table(game_mode: C.MW_WZ, source: C.MAIN, year: YearWzTable): Promise<typeof GAME_TABLES[C.FULLMATCHES][C.MW_WZ][C.MAIN][YearWzTable]>
+export async function get_game_table(game_mode: C.MW_WZ, source: C.BASIC, year: YearWzTable): Promise<typeof GAME_TABLES[C.FULLMATCHES][C.MW_WZ][C.BASIC][YearWzTable]>
+export async function get_game_table(game_mode: GameModeOnly, source: MatchBody['source'], year?: Year): Promise<
+    typeof GAME_TABLES[C.MATCHES][GameModeMw] |
+    typeof GAME_TABLES[C.FULLMATCHES][C.MW_MP][C.MAIN] |
+    typeof GAME_TABLES[C.FULLMATCHES][C.MW_MP][C.BASIC] |
+    typeof GAME_TABLES[C.FULLMATCHES][C.MW_WZ][C.MAIN][YearWzTable] |
+    typeof GAME_TABLES[C.FULLMATCHES][C.MW_WZ][C.BASIC][YearWzTable] |
+    undefined
+>
 export async function get_game_table(
     game_mode: GameModeOnly,
-    source: Exclude<MatchesSource, C.ALL>,
-    year?: YearWzTable
+    source: MatchBody['source'],
+    year?: Year
 ) {
     if (source === C.MATCHES) {
         return GAME_TABLES[source][game_mode]
@@ -70,23 +80,25 @@ export async function get_game_table(
         return GAME_TABLES[C.FULLMATCHES][game_mode][source]
     }
 
-    if (year) {
-        return GAME_TABLES[C.FULLMATCHES][game_mode][source][year]
+    const year_wz = YearWzTableSchema.safeParse(year)
+
+    if (year_wz.success) {
+        return GAME_TABLES[C.FULLMATCHES][game_mode][source][year_wz.data]
     }
 }
 
 export async function get_game_tables(
     game_mode: GameMode,
-    source: MatchesSourceMatches
+    source: C.MATCHES,
 ): Promise<TableGameData<typeof GAME_TABLES[C.MATCHES][C.MW_MP]>[]>
 export async function get_game_tables(
     game_mode: GameModeMw | C.ALL,
-    source: MatchesSourceFullmatches
+    source: MatchesSourceFullmatches | C.ALL
 ): Promise<
     TableGameData<typeof GAME_TABLES[C.FULLMATCHES][C.MW_MP][C.BASIC]>[] |
     TableGameData<typeof GAME_TABLES[C.FULLMATCHES][C.MW_WZ][C.BASIC]['2020']>[]
 >
-export async function get_game_tables(game_mode: GameMode, source: MatchesSource) {
+export async function get_game_tables(game_mode: GameMode, source: MatchesSource | C.ALL) {
     const tables: TableGameData[] = []
 
     if (source === C.MATCHES) {

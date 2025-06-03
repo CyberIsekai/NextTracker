@@ -159,7 +159,7 @@ from apps.tracker.crud.utils import (
 
 
 def test(db: Session, target: str):  # pylint: disable=unused-argument
-    return
+    return ', '.join(['', 'asd', 'asder', '', '', 'asdasdf'])
 
 
 def panel_get(db: Session) -> Panel:
@@ -733,7 +733,7 @@ def player_add_game_mode(db: Session, body: TargetGameMode) -> Error | Message:
 def player_matches_update(
     db: Session,
     uno: str,
-    game_mode: GameMode,
+    game_mode: GameModeOnly,
     data_type: Literal['matches', 'matches_history'],
 ):
     in_logs_game_status(db, uno, game_mode, data_type, 0)
@@ -1107,7 +1107,7 @@ def player_put(db: Session, body: EditTarget) -> EditPlayerResponse | Error:
 
 def get_data_from_platforms(
     player: PlayerBasic,
-    game_mode: GameMode,
+    game_mode: GameModeOnly,
     data_type: Literal['matches', 'stats'],
     start_time=0,
 ):
@@ -1320,7 +1320,7 @@ def group_update(db: Session, uno: str, g_game_mode: GameMode, data_type: DataTy
         # tracker_stats_update(db)
 
 
-def fullmatches_pars(db: Session, matchID: str, game_mode: GameMode, year: YearWzTable):
+def fullmatches_pars(db: Session, matchID: str, game_mode: GameModeOnly, year: YearWzTable):
     table = STT.get_table(game_mode, C.MAIN, year).table
     if db.query(table.id).filter(table.matchID == matchID).count():
         return  # already have match
@@ -1775,7 +1775,7 @@ def matches_router(db: Session, body: Router) -> MatchesResponse:
 SELECT '{t.game_mode}' AS {C.GAME_MODE}, '{t.source}' AS {C.SOURCE}, \
 {C.USERNAME if is_mw else f'null AS {C.USERNAME}'}, \
 {C.LOADOUT if is_mw and t.source != C.BASIC else f'null AS {C.LOADOUT}'},
-{', '.join(map(format_column, SC.BASIC_STATS))}
+{', '.join(map(format_column, SC.BASIC))}
 FROM {t.name} {query_table}
 '''
         )
@@ -2091,7 +2091,7 @@ def match_stats_get(db: Session, body: MatchBody) -> MatchStatsPlayer | Error:
     match_data = to_dict(match_data)
     uno = match_data.pop(C.UNO)
 
-    username: str | None = (
+    username: str = (
         match_data.pop(C.USERNAME, None)
         or (redis_manage(f'{C.PLAYER}:{C.UNO}_{uno}', 'hget', C.USERNAME) or [None])[0]
         or 'unknown'
@@ -2108,8 +2108,8 @@ def match_stats_get(db: Session, body: MatchBody) -> MatchStatsPlayer | Error:
         C.MODE: MF.get_mode(match_data.pop(C.MODE), C.MODE, body.game_mode),
         C.TEAM: match_data.pop(C.TEAM) or 'unknown',
         C.LOADOUT: MF.decode_loadout(match_data.pop(C.LOADOUT, None)),
-        'weaponStats': MF.decode_weapon_stats(match_data.pop('weaponStats', None)),
-        C.SOURCE: C.ALL if body.source in Year.__args__ else body.source,
+        C.WEAPON_STATS: MF.decode_weapon_stats(match_data.pop(C.WEAPON_STATS, None)),
+        C.SOURCE: body.source,
         C.TIME: match_data.pop(C.TIME),
         C.STATS: {
             # order basic stats at first place

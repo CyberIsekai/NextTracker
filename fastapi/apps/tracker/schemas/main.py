@@ -53,9 +53,8 @@ LabelType = Literal[
 ]
 YearWzTable = Literal['2020', '2021', '2022', '2023']
 Year = Literal['2019', '2020', '2021', '2022', '2023']
-MatchesSourceMatches = Literal['matches']
-MatchesSourceFullmatches = Literal['all', 'basic', 'main']
-MatchesSource = MatchesSourceMatches | MatchesSourceFullmatches
+MatchesSourceFullmatches = Literal['basic', 'main']
+MatchesSource = Literal['matches'] | MatchesSourceFullmatches
 
 PlatformOnly = Literal['uno', 'acti', 'battle']
 Platform = PlatformOnly | Literal['search', 'tracker_search']
@@ -63,7 +62,7 @@ DataTypeOnly = Literal['matches', 'matches_history', 'stats']
 DataType = DataTypeOnly | Literal['fullmatches', 'search', 'fullmatches_pars']
 TargetType = Literal['player', 'group']
 
-GameDataSlugs = tuple[str, GameMode, DataType, PlatformOnly, int]
+GameDataSlugs = tuple[str, GameModeOnly, DataType, PlatformOnly, int]
 RouterOrder = (
     GameBasicColumn
     | Literal[
@@ -145,14 +144,14 @@ class SC:
         C.MAP,
         C.MODE,
         C.RESULT,
+        C.WEAPON_STATS,
         'team1Score',
         'team2Score',
         'playerCount',
         'teamCount',
-        'weaponStats',
     )
     ROUND = (
-        'kdRatio',
+        C.KDRATIO,
         'wlRatio',
         'scorePerGame',
         'scorePerMinute',
@@ -171,42 +170,36 @@ class SC:
         'operatorExecution',
     )
     MATCH_STATS: tuple[MatchColumn] = MatchColumn.__args__
-    GAME_BASIC_COLUMNS: tuple[GameBasicColumn] = (C.DURATION, C.RESULT) + MATCH_STATS
-    BASIC = GAME_BASIC_COLUMNS + (C.ID, C.UNO, C.USERNAME, C.TEAM)
-    BASIC_FIELDS = GAME_BASIC_COLUMNS + (
+    GAME_BASIC_COLUMNS: tuple[GameBasicColumn] = (C.DURATION,) + MATCH_STATS
+    BASIC = GAME_BASIC_COLUMNS + (
         C.ID,
         C.UNO,
+        C.RESULT,
         C.MATCHID,
         C.TIME,
         C.MAP,
         C.MODE,
     )
-    BASIC_STATS = BASIC_FIELDS + (C.DURATION,)
-    ALL_STATS = BASIC_FIELDS + (
+    ALL_STATS = BASIC + (
         C.USERNAME,
         C.CLANTAG,
         C.TEAM,
+        C.LOADOUT,
+        C.WEAPON_STATS,
         'team1Score',
         'team2Score',
-        C.LOADOUT,
-        'weaponStats',
     )
     MATCH_META = (C.TIME, C.MODE, C.MAP, C.DURATION)
-    MATCH = {
-        C.ALL: {C.BASIC: BASIC},
+    MATCH = {  # : dict[GameModeMw, dict[Literal['basic', 'meta'], tuple[str]]]
         C.MW_MP: {
-            C.BASIC: BASIC + (C.CLANTAG,),
+            C.BASIC: (C.ID, C.UNO, C.RESULT, C.USERNAME, C.TEAM, C.CLANTAG)
+            + GAME_BASIC_COLUMNS,
             'meta': MATCH_META + ('team1Score', 'team2Score'),
         },
         C.MW_WZ: {
-            C.BASIC: BASIC + (C.CLANTAG,),
+            C.BASIC: (C.ID, C.UNO, C.RESULT, C.USERNAME, C.TEAM, C.CLANTAG)
+            + GAME_BASIC_COLUMNS,
             'meta': MATCH_META,
-        },
-        C.CW_MP: {
-            C.BASIC: BASIC,
-        },
-        C.VG_MP: {
-            C.BASIC: BASIC,
         },
     }
     RENAME_TO_BASIC = {
@@ -978,7 +971,7 @@ class TargetGameMode(BaseModel):
 class MatchBody(BaseModel):
     game_mode: GameModeOnly
     match_id: int
-    source: MatchesSource
+    source: Literal['matches', 'basic', 'main']
     year: Year
 
 

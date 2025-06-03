@@ -557,11 +557,7 @@ def translate_store_get(db: Session):
 
 
 def translate_version_check(db: Session, user_version: str):
-    version: str | None = redis_manage(C.TRANSLATE)
-
-    if version is None:
-        version = translate_version_update(db)
-
+    version: str = redis_manage(C.TRANSLATE) or translate_version_update(db)
     res: Status = {C.STATUS: version == user_version}
 
     return res

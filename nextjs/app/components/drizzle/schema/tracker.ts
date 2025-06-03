@@ -48,6 +48,7 @@ export const cod_players = pgTable('cod_players', {
 )
 
 export const cod_label_map = pgTable('cod_label_map', tracker_abstract.cod_label())
+export const cod_label_mode = pgTable('cod_label_mode', tracker_abstract.cod_label())
 export const cod_label_weapons = pgTable('cod_label_weapons', tracker_abstract.cod_label())
 export const cod_label_attachments = pgTable('cod_label_attachments', tracker_abstract.cod_label())
 export const cod_label_perks = pgTable('cod_label_perks', tracker_abstract.cod_label())

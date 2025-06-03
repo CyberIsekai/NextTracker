@@ -5,6 +5,7 @@ from apps.base.schemas.main import C
 from apps.tracker.schemas.main import (
     TableGameData,
     GameMode,
+    GameModeOnly,
     Game,
     LabelType,
     Mode,
@@ -44,7 +45,7 @@ from apps.tracker.models.main import (
 )
 
 
-def create_table_data(game_mode: GameMode, table: object, source: MatchesSource):
+def create_table_data(game_mode: GameModeOnly, table: object, source: MatchesSource):
     return TableGameData(
         game_mode=game_mode, table=table, name=table.__tablename__, source=source
     )
@@ -83,33 +84,34 @@ class TrackerMatches(TrackerPlayers):
             C.VG_MP: cod_matches_vg_mp,
         }
 
-    def matches_table(self, game_mode: GameMode, source: MatchesSource):
-        table = self.__dict__[source][game_mode]
-        return create_table_data(game_mode, table, source)
+    def matches_table(self, game_mode: GameModeOnly):
+        table = self.matches[game_mode]
+        return create_table_data(game_mode, table, C.MATCHES)
 
-    def matches_tables(self, game: Game, mode: Mode, source: MatchesSource):
-        path = self.__dict__[source]
-
+    def matches_tables(self, game: Game, mode: Mode):
         if game == mode == C.ALL:
-            game_modes = path
+            game_modes = self.matches
 
-        elif (game_mode := f'{game}_{mode}') in path:
-            game_modes = {game_mode: path[game_mode]}
+        elif (game_mode := f'{game}_{mode}') in self.matches:
+            game_modes = {game_mode: self.matches[game_mode]}
 
         elif game == C.MW and mode == C.ALL:
-            game_modes = {C.MW_MP: path[C.MW_MP], C.MW_WZ: path[C.MW_WZ]}
+            game_modes = {
+                C.MW_MP: self.matches[C.MW_MP],
+                C.MW_WZ: self.matches[C.MW_WZ],
+            }
 
         elif game == C.CW and mode == C.ALL:
-            game_modes = {C.CW_MP: path[C.CW_MP]}
+            game_modes = {C.CW_MP: self.matches[C.CW_MP]}
 
         elif game == C.VG and mode == C.ALL:
-            game_modes = {C.VG_MP: path[C.VG_MP]}
+            game_modes = {C.VG_MP: self.matches[C.VG_MP]}
 
         else:
             game_modes = {}
 
         tables = [
-            create_table_data(game_mode, table, source)
+            create_table_data(game_mode, table, C.MATCHES)
             for game_mode, table in game_modes.items()
         ]
 
@@ -160,8 +162,8 @@ class TrackerFullmatches(TrackerMatches):
 
     def fullmatches_table(
         self,
-        game_mode: GameMode,
-        source: MatchesSource,
+        game_mode: GameModeOnly,
+        source: Literal['main', 'basic'],
         year: YearWzTable | None = None,
     ):
         if game_mode == C.MW_WZ and year:
@@ -174,7 +176,7 @@ class TrackerFullmatches(TrackerMatches):
     def fullmatches_tables(
         self,
         game_mode: Literal['mw_mp', 'mw_wz', 'all'],
-        source: MatchesSource,
+        source: Literal['all'] | MatchesSource,
         year: YearWzTable | None = None,
     ):
         tables = []
@@ -243,8 +245,8 @@ class StoreTrackerTables(StoreLabelIndexes):
         if game_mode == C.ALL:
             table = None
         elif source == C.MATCHES:
-            table = self.matches_table(game_mode, source)
-        elif source in (C.MAIN, C.BASIC, C.ALL):
+            table = self.matches_table(game_mode)
+        elif source in (C.MAIN, C.BASIC):
             table = self.fullmatches_table(game_mode, source, year)
         else:
             table = None
@@ -255,11 +257,11 @@ class StoreTrackerTables(StoreLabelIndexes):
         self,
         game: Game,
         mode: Mode,
-        source: MatchesSource,
+        source: Literal['all'] | MatchesSource,
         year: YearWzTable | None = None,
     ) -> list[TableGameData]:
         if source == C.MATCHES:
-            return self.matches_tables(game, mode, source)
+            return self.matches_tables(game, mode)
 
         game_mode = C.ALL if C.ALL in (game, mode) else f'{game}_{mode}'
 
@@ -279,7 +281,7 @@ class StoreTrackerTables(StoreLabelIndexes):
             game_mode = C.ALL if C.ALL in (game, mode) else f'{game}_{mode}'
             tables = self.fullmatches_tables(game_mode, C.ALL, year)
         else:
-            tables = self.matches_tables(game, mode, C.MATCHES)
+            tables = self.matches_tables(game, mode)
 
         return tables
 

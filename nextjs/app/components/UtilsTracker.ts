@@ -61,6 +61,7 @@ import {
 } from '@/app/components/UtilsValidators'
 import {
     extract_ratio,
+    pop,
 } from '@/app/components/Utils'
 import {
     config_get,
@@ -137,10 +138,13 @@ import {
 } from '@/app/components/Table'
 import {
     MATCH_COLUMNS,
+    MatchBody,
     MatchColumnSchema,
     MatchID,
     MatchPlayerSchema,
+    MatchStatsPlayer,
 } from '@/app/components/zod/Match'
+import { MF } from '@/app/components/MatchFormatter'
 
 export const add_to_task_queues = async (
     uno: Uno,
@@ -1977,12 +1981,62 @@ export const clear_fullmatches_doubles = async (matchID: MatchID, game_mode: Gam
 
     const message = `[${matchID}] ${game_mode} doubles ${C.DELETED} [${result.length}]`
 
-    in_logs(
-        clear_fullmatches_doubles.name,
-        message,
-        'cod_logs',
-        { result },
-    )
+    in_logs(clear_fullmatches_doubles.name, message, 'cod_logs', { result })
 
     return { message, result }
+}
+
+export const match_stats_get = async (body: MatchBody) => {
+    const { game_mode, match_id, source, year } = body
+    const table = await get_game_table(game_mode, source, year)
+
+    if (!table) {
+        return `${C.SOURCE} ${C.MATCH} ${C.STATS} ${C.NOT_FOUND}`
+    }
+
+    const [match_data] = await db.select().from(table).where(eq(table.id, match_id))
+
+    if (!match_data) {
+        return `[${body.match_id}] ${C.NOT_FOUND}`
+    }
+
+    const uno = pop(match_data, C.UNO)
+
+    const username: string = (
+        pop(match_data, C.USERNAME, null) ||
+        ((await redis_manage(`${C.PLAYER}:${C.UNO}_${uno}`, 'hget', C.USERNAME)) || [])[0] ||
+        'unknown'
+    )
+
+    const match_stats: MatchStatsPlayer = {
+        id: pop(match_data, C.ID),
+        uno,
+        username,
+        clantag: pop(match_data, C.CLANTAG, null),
+        result: pop(match_data, C.RESULT),
+        matchID: pop(match_data, C.MATCHID),
+        map: await MF.get_mode(pop(match_data, C.MAP), C.MAP, game_mode),
+        mode: await MF.get_mode(pop(match_data, C.MODE), C.MODE, game_mode),
+        team: pop(match_data, C.TEAM) || 'unknown',
+        loadout: [], // TODO
+        weaponStats: [], // TODO
+        source,
+        time: pop(match_data, C.TIME).toISOString(),
+        stats: {},
+    }
+
+    for (const stat_name of [
+        C.DURATION,
+        C.TIME_PLAYED,
+        'teamSurvivalTime',
+        'timePlayedAlive',
+    ] as const) {
+        if (stat_name in match_stats.stats) {
+            // match_stats.stats[stat_name] = date_format( TODO
+            //     match_stats.stats[stat_name], C.TIME
+            // )
+        }
+    }
+
+    return match_stats
 }

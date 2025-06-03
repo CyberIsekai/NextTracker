@@ -5,6 +5,12 @@ import {
   TIME_LOAD_DELAY
 } from '@/app/components/Consts'
 import {
+  target_data_get,
+  target_unos_get,
+} from '@/app/components/UtilsTracker'
+import { validate_game_mode } from '@/app/components/UtilsValidators'
+import { translate_store_get, translate_version_check } from '@/app/components/UtilsBase'
+import {
   PROFILE,
   UserProfile,
 } from '@/app/components/zod/User'
@@ -28,15 +34,10 @@ import {
   ModeSchema,
 } from '@/app/components/zod/GameMode'
 import {
-  target_data_get,
-  target_unos_get,
-} from '@/app/components/UtilsTracker'
-import {
   Alert,
   AlertColor,
   RequestMethod,
   RequestMethodSchema,
-  Status,
   MessageStatus,
   MessageStatusSchema,
   TimeType,
@@ -48,7 +49,6 @@ import {
   PlayerUno,
   Uno,
 } from '@/app/components/zod/Uno'
-import { validate_game_mode } from '@/app/components/UtilsValidators'
 import { LabelData } from '@/app/components/zod/Label'
 import {
   Language,
@@ -85,9 +85,10 @@ export function local_profile_manage(user_profile?: UserProfile) {
 }
 
 export async function translate_set() {
-  const res = await fetch_request<TranslatesStore>('translate_store')
+  // const res = await fetch_request<TranslatesStore>('translate_store')
+  // if (!res || res.detail) return
 
-  if (!res || res.detail) return
+  const res = await translate_store_get()
 
   local_storage(C.TRANSLATE, 'set', res)
 
@@ -111,7 +112,8 @@ export async function translate_get() {
   }
 
   // check for actual version
-  const version_check = await fetch_request<Status>(`translate_version_check/${user_version}`)
+  const version_check = await translate_version_check(user_version)
+  // const version_check = await fetch_request<Status>(`translate_version_check/${user_version}`)
   if (!version_check?.status) {
     return translate_set()
   }

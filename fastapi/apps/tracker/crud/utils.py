@@ -942,9 +942,7 @@ def game_stats_format(
 def is_none_value(value):
     if not value:
         return True
-    if value in ('none', 'nones', 'null', '0'):
-        return True
-    return False
+    return value in ('none', 'nones', 'null', '0')
 
 
 def group_players(uno: str, players: list[cod_players]):

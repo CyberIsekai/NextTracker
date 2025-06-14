@@ -18,6 +18,7 @@ import * as fs from 'fs'
 import * as schema from '@/app/components/drizzle/schema'
 import redis_manage from '@/app/components/Redis'
 import { db } from '@/app/components/drizzle/db'
+import match_formatter_get from '@/app/components/MatchFormatter'
 import {
     C,
     TIME_LOAD_DELAY,
@@ -62,6 +63,7 @@ import {
 import {
     extract_ratio,
     pop,
+    seconds_to_duration,
 } from '@/app/components/Utils'
 import {
     config_get,
@@ -137,6 +139,7 @@ import {
     get_game_tables,
 } from '@/app/components/Table'
 import {
+    GameBasicColumnSchema,
     MATCH_COLUMNS,
     MatchBody,
     MatchColumnSchema,
@@ -144,7 +147,6 @@ import {
     MatchPlayerSchema,
     MatchStatsPlayer,
 } from '@/app/components/zod/Match'
-import { MF } from '@/app/components/MatchFormatter'
 
 export const add_to_task_queues = async (
     uno: Uno,
@@ -1991,13 +1993,13 @@ export const match_stats_get = async (body: MatchBody) => {
     const table = await get_game_table(game_mode, source, year)
 
     if (!table) {
-        return `${C.SOURCE} ${C.MATCH} ${C.STATS} ${C.NOT_FOUND}`
+        throw new Error(`${C.SOURCE} ${C.MATCH} ${C.STATS} ${C.NOT_FOUND}`)
     }
 
     const [match_data] = await db.select().from(table).where(eq(table.id, match_id))
 
     if (!match_data) {
-        return `[${body.match_id}] ${C.NOT_FOUND}`
+        throw new Error(`${C.MATCH} ${C.ID} [${body.match_id}] ${C.NOT_FOUND}`)
     }
 
     const uno = pop(match_data, C.UNO)
@@ -2007,6 +2009,8 @@ export const match_stats_get = async (body: MatchBody) => {
         ((await redis_manage(`${C.PLAYER}:${C.UNO}_${uno}`, 'hget', C.USERNAME)) || [])[0] ||
         'unknown'
     )
+
+    const MF = await match_formatter_get()
 
     const match_stats: MatchStatsPlayer = {
         id: pop(match_data, C.ID),
@@ -2018,23 +2022,35 @@ export const match_stats_get = async (body: MatchBody) => {
         map: await MF.get_mode(pop(match_data, C.MAP), C.MAP, game_mode),
         mode: await MF.get_mode(pop(match_data, C.MODE), C.MODE, game_mode),
         team: pop(match_data, C.TEAM) || 'unknown',
-        loadout: [], // TODO
-        weaponStats: [], // TODO
+        loadout: await MF.decode_loadout(pop(match_data, C.LOADOUT, null) as string | null),
+        weaponStats: await MF.decode_weapon_stats(pop(match_data, C.WEAPON_STATS, null) as string | null),
         source,
         time: pop(match_data, C.TIME).toISOString(),
-        stats: {},
+        stats: {}, // basic stats
     }
 
+    /* =========== order basic stats at first place and filter values =================== */
+    const keys_in_obj = new Set(Object.keys(match_data))
+    // add priority keys in specified order if exist and have value
+    for (const stat_name of GameBasicColumnSchema.options) {
+        if (keys_in_obj.has(stat_name)) {
+            match_stats.stats[stat_name] = match_data[stat_name]
+            keys_in_obj.delete(stat_name)
+        }
+    }
+    // add remaining keys in original insertion order
+    for (const [stat_name, value] of Object.entries(match_data)) {
+        if (keys_in_obj.has(stat_name) && value && typeof value === 'number') {
+            match_stats.stats[stat_name] = value
+        }
+    }
+    /* ================================================================================== */
+
     for (const stat_name of [
-        C.DURATION,
-        C.TIME_PLAYED,
-        'teamSurvivalTime',
-        'timePlayedAlive',
+        C.DURATION, C.TIME_PLAYED, 'teamSurvivalTime', 'timePlayedAlive'
     ] as const) {
         if (stat_name in match_stats.stats) {
-            // match_stats.stats[stat_name] = date_format( TODO
-            //     match_stats.stats[stat_name], C.TIME
-            // )
+            match_stats.stats[stat_name] = seconds_to_duration(+match_stats.stats[stat_name])
         }
     }
 

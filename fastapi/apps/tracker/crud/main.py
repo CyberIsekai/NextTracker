@@ -1320,7 +1320,9 @@ def group_update(db: Session, uno: str, g_game_mode: GameMode, data_type: DataTy
         # tracker_stats_update(db)
 
 
-def fullmatches_pars(db: Session, matchID: str, game_mode: GameModeOnly, year: YearWzTable):
+def fullmatches_pars(
+    db: Session, matchID: str, game_mode: GameModeOnly, year: YearWzTable
+):
     table = STT.get_table(game_mode, C.MAIN, year).table
     if db.query(table.id).filter(table.matchID == matchID).count():
         return  # already have match
@@ -2112,7 +2114,7 @@ def match_stats_get(db: Session, body: MatchBody) -> MatchStatsPlayer | Error:
         C.SOURCE: body.source,
         C.TIME: match_data.pop(C.TIME),
         C.STATS: {
-            # order basic stats at first place
+            # order basic stats at first place and filter values
             stat_name: match_data.pop(stat_name)
             for stat_name in SC.GAME_BASIC_COLUMNS
             if match_data.get(stat_name)
@@ -2124,12 +2126,7 @@ def match_stats_get(db: Session, body: MatchBody) -> MatchStatsPlayer | Error:
         },
     }
 
-    for stat_name in (
-        C.DURATION,
-        C.TIME_PLAYED,
-        'teamSurvivalTime',
-        'timePlayedAlive',
-    ):
+    for stat_name in (C.DURATION, C.TIME_PLAYED, 'teamSurvivalTime', 'timePlayedAlive'):
         if stat_name in match_stats[C.STATS]:
             match_stats[C.STATS][stat_name] = date_format(
                 match_stats[C.STATS][stat_name], C.TIME

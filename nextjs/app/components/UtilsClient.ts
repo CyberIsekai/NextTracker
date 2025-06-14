@@ -365,10 +365,6 @@ export const date_format = (
 
   let formated_date = ''
 
-  const options: Intl.DateTimeFormatOptions = {
-    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-  }
-
   if (strf === undefined) {
   } else if (strf === C.ISO) {
     formated_date = date.toISOString()
@@ -377,37 +373,23 @@ export const date_format = (
   } else if (strf === C.TIME) {
     formated_date = date.toLocaleString(local_profile_manage().language).split(',')[1].split(' ')[1]
   } else if (strf === C.DATE) {
-    options.month = 'short'
-    options.day = 'numeric'
-    options.year = 'numeric'
+    const options: Intl.DateTimeFormatOptions = {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    }
     formated_date = date.toLocaleString(local_profile_manage().language, options)
   } else if (strf === C.DATETIME) {
+    const options: Intl.DateTimeFormatOptions = {
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    }
     formated_date = date.toLocaleString(local_profile_manage().language, options)
   } else {
     formated_date = `Invalid ${C.DATE}`
   }
 
   return formated_date
-}
-
-export const seconds_to_time = (all_seconds: number): string => {
-  const all_minutes = Math.floor(all_seconds / 60)
-  const hours = Math.floor(all_minutes / 60).toString().padStart(2, '0')
-  const minutes = all_minutes % 60
-  const seconds = all_seconds % 60
-
-  return `${hours}:${minutes}:${seconds}`
-}
-
-export const seconds_to_duration = (seconds: number): string => {
-  if (!seconds) return '00:00'
-  const duration = new Date((seconds) * 1000)
-  const dates = [duration.getUTCHours(), duration.getUTCMinutes(), duration.getSeconds()]
-  const [h, m, s] = dates.map(date => date.toString().padStart(2, '0'))
-  if (h == '00') {
-    return `${m}:${s}`
-  }
-  return `${h}:${m}:${s}`
 }
 
 export const get_ago_seconds = (date?: Date | string): number => {

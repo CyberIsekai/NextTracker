@@ -11,7 +11,6 @@ import {
     router_generate_url,
     date_format,
     get_result_color,
-    fetch_request,
 } from '@/app/components/UtilsClient'
 import {
     game_mode_split,
@@ -27,6 +26,7 @@ import {
     MATCH_RESULT_MP,
     MatchResultMp,
 } from '@/app/components/zod/Match'
+import { match_stats_get } from '@/app/components/UtilsTracker'
 
 export default function MatchStatsCard({ match_body, is_modal }: {
     match_body: MatchBody
@@ -45,30 +45,52 @@ export default function MatchStatsCard({ match_body, is_modal }: {
 
     const load_match_stats = async () => {
         const uid = `match_stats_${game_mode}_${match_id}_${source}_${year}`
-        let match_stats: MatchStatsPlayer & { detail?: string } | undefined
-
         const saved_stats = sessionStorage.getItem(uid)
+
         if (saved_stats) {
-            match_stats = JSON.parse(saved_stats)
-        } else {
-            match_stats = await fetch_request<MatchStatsPlayer>('match_stats', match_body)
-            sessionStorage.setItem(uid, JSON.stringify(match_stats))
+            try {
+                setPlayer(JSON.parse(saved_stats))
+                setError('')
+            } catch {
+                setError(saved_stats)
+            }
+            return
         }
 
-        if (!match_stats || match_stats.detail) {
-            setError(match_stats?.detail || `${C.MATCH} ${C.STATS} ${C.ERROR}`)
-        } else {
-            setError('')
+        try {
+            const match_stats = await match_stats_get(match_body)
+            sessionStorage.setItem(uid, JSON.stringify(match_stats))
             setPlayer(match_stats)
+            setError('')
+        } catch (e) {
+            const error = (e as Error).message
+            sessionStorage.setItem(uid, error)
+            setError(error)
         }
+
+        // let match_stats: MatchStatsPlayer & { detail?: string } | undefined
+
+        // if (saved_stats) {
+        //     match_stats = JSON.parse(saved_stats)
+        // } else {
+        //     match_stats = await fetch_request<MatchStatsPlayer>('match_stats', match_body)
+        //     sessionStorage.setItem(uid, JSON.stringify(match_stats))
+        // }
+
+        // if (!match_stats || match_stats.detail) {
+        //     setError(match_stats?.detail || `${C.MATCH} ${C.STATS} ${C.ERROR}`)
+        // } else {
+        //     setError('')
+        //     setPlayer(match_stats)
+        // }
     }
 
     useEffect(() => {
         load_match_stats()
     }, [])
 
-    if (!player) return <div>{t(C.LOADING)}...</div>
     if (error) return <div>{t(error)}</div>
+    if (!player) return <div>{t(C.LOADING)}...</div>
 
     const url = `/match_stats/${game_mode}/${player.id}/${source}/${year}/`
 

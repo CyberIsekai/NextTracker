@@ -22,8 +22,8 @@ import {
   order_change,
   get_result_color,
   order_status,
-  seconds_to_duration,
 } from '@/app/components/UtilsClient'
+import { seconds_to_duration } from '@/app/components/Utils'
 import {
   GAME_MODE_TITLES,
   GameModeOnlySchema,

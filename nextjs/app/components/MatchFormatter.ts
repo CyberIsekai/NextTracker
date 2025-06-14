@@ -1,3 +1,5 @@
+'use server'
+
 import * as schema from '@/app/components/drizzle/schema'
 import { db } from '@/app/components/drizzle/db'
 import { eq } from 'drizzle-orm'
@@ -24,52 +26,93 @@ import {
     WeaponStatsRaw,
 } from '@/app/components/zod/Matches'
 
-export const LABEL_TABLES = {
-    map: schema.cod_label_map,
-    mode: schema.cod_label_mode,
-    games_stats: schema.cod_label_games_stats,
-    weapons: schema.cod_label_weapons,
-    attachments: schema.cod_label_attachments,
-    perks: schema.cod_label_perks,
-    killstreaks: schema.cod_label_killstreaks,
-    tactical: schema.cod_label_tactical,
-    lethal: schema.cod_label_lethal,
-} as const
+class MatchFormatter {
+    private decoded = new Map<LabelType, Map<string, LabelData>>()
+    private encoded = new Map<LabelType, Map<string, string>>()
 
-class TrackerLabels {
-    protected decoded: Record<LabelType, Record<string, LabelData>>
-    protected encoded: Record<LabelType, Record<string, string>>
+    private is_initialized = false
+    private init_promise: Promise<void> | null = null
+    private initialization_error: Error | null = null
+
+    private LABEL_TABLES = new Map<
+        LabelType,
+        | typeof schema.cod_label_map
+        | typeof schema.cod_label_mode
+        | typeof schema.cod_label_games_stats
+        | typeof schema.cod_label_weapons
+        | typeof schema.cod_label_attachments
+        | typeof schema.cod_label_perks
+        | typeof schema.cod_label_killstreaks
+        | typeof schema.cod_label_tactical
+        | typeof schema.cod_label_lethal
+    >([
+        [C.MAP, schema.cod_label_map],
+        [C.MODE, schema.cod_label_mode],
+        [C.GAMES_STATS, schema.cod_label_games_stats],
+        ['weapons', schema.cod_label_weapons],
+        ['attachments', schema.cod_label_attachments],
+        ['perks', schema.cod_label_perks],
+        ['killstreaks', schema.cod_label_killstreaks],
+        ['tactical', schema.cod_label_tactical],
+        ['lethal', schema.cod_label_lethal],
+    ])
+
+    private GAME_COLUMNS: Record<GameModeOnly, string[]> = {
+        [C.MW_MP]: [],
+        [C.MW_WZ]: [],
+        [C.CW_MP]: [],
+        [C.VG_MP]: [],
+    }
+
+    private readonly WEAPON_TYPES = Object.keys(MatchLoadoutSchema.shape) as (keyof MatchLoadout)[]
+    private readonly STAT_TYPES = Object.keys(MatchLoadoutDataWeaponStatsSchema.shape) as (keyof MatchLoadoutDataWeaponStats)[]
+
+    private readonly SPLIT_ON_LOADOUTS = '\n'
+    private readonly SPLIT_ON_WEAPONS = ','
+    private readonly SPLIT_ON_INDEXES = ' '
 
     constructor() {
-        this.decoded = {} as Record<LabelType, Record<string, LabelData>>
-        this.encoded = {} as Record<LabelType, Record<string, string>>
-        Object.keys(LABEL_TABLES).forEach(key => {
-            const label_type = key as LabelType
-            this.decoded[label_type] = {}
-            this.encoded[label_type] = {}
-        })
-    }
-
-    static async create(): Promise<TrackerLabels> {
-        const instance = new TrackerLabels()
-        await instance.initialize()
-        return instance
-    }
-
-    protected async initialize(): Promise<void> {
-        for (const [key, table] of Object.entries(LABEL_TABLES)) {
-            const label_type = key as LabelType
-            const all_label_data = await db.select().from(table)
-
-            for (const label_data of all_label_data) {
-                const index = label_data.id.toString()
-                this.decoded[label_type][index] = {
-                    name: label_data.name,
-                    label: label_data.label,
-                }
-                this.encoded[label_type][label_data.name] = index
-            }
+        for (const label_type of this.LABEL_TABLES.keys()) {
+            this.decoded.set(label_type, new Map())
+            this.encoded.set(label_type, new Map())
         }
+    }
+
+    public async initialize(): Promise<void> {
+        if (this.is_initialized) return
+        if (this.init_promise) return this.init_promise
+
+        this.init_promise = (async () => {
+            try {
+                await Promise.all(
+                    Array.from(this.LABEL_TABLES.entries()).map(async ([label_type, table]) => {
+                        const all_label_data = await db.select().from(table)
+
+                        for (const label_data of all_label_data) {
+                            const index = label_data.id.toString()
+
+                            this.decoded.get(label_type)?.set(index, {
+                                name: label_data.name,
+                                label: label_data.label
+                            })
+                            this.encoded.get(label_type)?.set(label_data.name, index)
+                        }
+                    })
+                )
+
+                const tables = await get_game_tables(C.ALL, C.MATCHES)
+                tables.forEach(t =>
+                    this.GAME_COLUMNS[t.game_mode] = Object.keys(t.table)
+                )
+
+                this.is_initialized = true
+            } catch (e) {
+                this.initialization_error = e as Error
+                throw e
+            }
+        })()
+
+        return this.init_promise
     }
 
     private async create_index(
@@ -77,7 +120,7 @@ class TrackerLabels {
         label_type: LabelType,
         game_mode: GameModeOnly,
     ): Promise<string> {
-        const table = LABEL_TABLES[label_type]
+        const table = this.LABEL_TABLES.get(label_type)!
         let data: typeof table.$inferSelect
         const [existing] = await db.select().from(table).where(eq(table.name, label_data.name)).limit(1)
 
@@ -95,11 +138,11 @@ class TrackerLabels {
 
         const index = data.id.toString()
 
-        this.decoded[label_type][index] = {
+        this.decoded.get(label_type)?.set(index, {
             name: data.name,
             label: data.label,
-        }
-        this.encoded[label_type][data.name] = index
+        })
+        this.encoded.get(label_type)?.set(data.name, index)
 
         return index
     }
@@ -114,7 +157,7 @@ class TrackerLabels {
             return null
         }
 
-        let index = this.encoded[label_type][name]
+        let index = this.encoded.get(label_type)?.get(name)
 
         if (!index) {
             index = await this.create_index({ name, label }, label_type, game_mode)
@@ -126,7 +169,7 @@ class TrackerLabels {
     async get_label_data_from_table(
         index: string, label_type: LabelType
     ): Promise<LabelData> {
-        const table = LABEL_TABLES[label_type]
+        const table = this.LABEL_TABLES.get(label_type)!
         const [existing] = await db.select().from(table).where(eq(table.id, +index)).limit(1)
 
         let label_data: LabelData
@@ -137,8 +180,8 @@ class TrackerLabels {
             label_data = { name: 'unknown', label: null }
         }
 
-        this.decoded[label_type][index] = label_data
-        this.encoded[label_type][label_data.name] = index
+        this.decoded.get(label_type)?.set(index, label_data)
+        this.encoded.get(label_type)?.set(label_data.name, index)
 
         return label_data
     }
@@ -150,7 +193,7 @@ class TrackerLabels {
             return { name: 'unknown', label: null }
         }
 
-        let label_data = this.decoded[label_type][index]
+        let label_data = this.decoded.get(label_type)?.get(index)
 
         if (label_data === undefined) {
             label_data = await this.get_label_data_from_table(index, label_type)
@@ -169,46 +212,13 @@ class TrackerLabels {
 
         return label_data
     }
-}
-
-class MatchFormatter extends TrackerLabels {
-    private GAME_COLUMNS: Record<GameModeOnly, string[]> = {
-        [C.MW_MP]: [],
-        [C.MW_WZ]: [],
-        [C.CW_MP]: [],
-        [C.VG_MP]: [],
-    }
-
-    readonly WEAPON_TYPES = Object.keys(MatchLoadoutSchema.shape) as (keyof MatchLoadout)[]
-    readonly STAT_TYPES = Object.keys(MatchLoadoutDataWeaponStatsSchema.shape) as (keyof MatchLoadoutDataWeaponStats)[]
-
-    private readonly SPLIT_ON_LOADOUTS = '\n'
-    private readonly SPLIT_ON_WEAPONS = ','
-    private readonly SPLIT_ON_INDEXES = ' '
-
-    constructor() {
-        super()
-    }
-
-    static async create(): Promise<MatchFormatter> {
-        const instance = new MatchFormatter()
-        await instance.initialize()
-        return instance
-    }
-
-    protected async initialize(): Promise<void> {
-        const tables = await get_game_tables(C.ALL, C.MATCHES)
-        tables.forEach(t =>
-            this.GAME_COLUMNS[t.game_mode] = Object.keys(t.table)
-        )
-    }
 
     async format_match(match_raw: MatchesRaw, game_mode: GameModeOnly) {
         const match: Record<string, unknown> = {}
         match.time = new Date(match_raw.utcStartSeconds * 1000)
 
         for (const [name, value] of Object.entries(match_raw.player)) {
-            if (SC.PLAYER.includes(name as typeof SC.PLAYER[number]) && !is_none_value(value as string)) {
+            if (SC.PLAYER.includes(name as typeof SC.PLAYER[number]) && !is_none_value(value)) {
                 match[name] = value
             }
         }
@@ -367,6 +377,7 @@ class MatchFormatter extends TrackerLabels {
 
     async decode_loadout(loadouts_raw: string | null) {
         const decoded_loadouts: MatchLoadout[] = []
+
         if (!loadouts_raw) return decoded_loadouts
 
         const loadouts = loadouts_raw.split(this.SPLIT_ON_LOADOUTS)
@@ -387,7 +398,7 @@ class MatchFormatter extends TrackerLabels {
                         attachments: [],
                     }
 
-                    for (const attachment_index in weapon_indexes) {
+                    for (const attachment_index of weapon_indexes) {
                         const attachment = await this.get_label_data(attachment_index, 'attachments')
                         weapon.attachments.push(attachment)
                     }
@@ -412,9 +423,10 @@ class MatchFormatter extends TrackerLabels {
                     }
                 }
 
-                decoded_loadouts.push(decoded_loadout)
                 index++
             }
+
+            decoded_loadouts.push(decoded_loadout)
         }
 
         return decoded_loadouts
@@ -482,4 +494,14 @@ class MatchFormatter extends TrackerLabels {
     }
 }
 
-export const MF = await MatchFormatter.create()
+let match_formatter_promise: Promise<MatchFormatter> | null = null
+
+const match_formatter_get = async (): Promise<MatchFormatter> => {
+    if (!match_formatter_promise) {
+        const instance = new MatchFormatter()
+        match_formatter_promise = instance.initialize().then(() => instance)
+    }
+    return match_formatter_promise
+}
+
+export default match_formatter_get

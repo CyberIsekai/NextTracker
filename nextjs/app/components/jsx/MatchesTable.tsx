@@ -29,14 +29,17 @@ import {
     get_result_color,
     router_generate_url,
     capitalize,
-    seconds_to_duration,
     order_status,
     order_change,
 } from '@/app/components/UtilsClient'
 import {
     is_best_record,
 } from '@/app/components/UtilsValidators'
-import { extract_ratio, round_number } from '@/app/components/Utils'
+import {
+    extract_ratio,
+    round_number,
+    seconds_to_duration,
+} from '@/app/components/Utils'
 import { cache_matches_get } from '@/app/components/UtilsTracker'
 import {
     Router,

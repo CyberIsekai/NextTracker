@@ -53,6 +53,7 @@ from apps.tracker.schemas.main import LogsTracker, BaseStats, GameMode
 def date_format(input_time, strf: FormatDate = None) -> str | int | datetime.datetime:
     if not input_time:
         return 'no date'
+
     if isinstance(input_time, (datetime.datetime, datetime.date, datetime.time)):
         formated = input_time
     elif isinstance(input_time, (float, int)):

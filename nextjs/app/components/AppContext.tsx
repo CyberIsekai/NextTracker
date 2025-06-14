@@ -59,7 +59,7 @@ export default function useAppContext() { return useContext(AppContext) }
 export const AppWrapper = ({ children }: { children: React.ReactNode }) => {
     const [profile, setProfile] = useState<UserProfile>({
         ...PROFILE,
-        language: local_profile_manage().language
+        language: local_profile_manage().language,
     })
     const [translate, setTranslate] = useState<
         Record<Translate, Record<string, Record<Language, string | null> | undefined>>
